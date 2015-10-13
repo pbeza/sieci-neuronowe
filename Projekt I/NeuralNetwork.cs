@@ -119,6 +119,8 @@ namespace sieci_neuronowe
                 writetext.WriteLine(@"Training error: " + TrainingModel.CalculateError(BestMethod, TrainingModel.TrainingDataset));
                 writetext.WriteLine(@"Validation error: " + TrainingModel.CalculateError(BestMethod, TrainingModel.ValidationDataset));
 
+                PictureGenerator.DrawArea("area_classification.bmp", BestMethod, NormHelper, 1024, 1024);
+
                 EncogFramework.Instance.Shutdown();
             }
         }
@@ -135,12 +137,16 @@ namespace sieci_neuronowe
                 var y = csv.GetDouble(1);
                 var correct = string.Empty;
                 if (csv.ColumnCount > 2)
+                {
                     correct = csv.Get(2);
+                }
+
                 helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, ((BasicMLData)input).Data, false);
                 var output = bestMethod.Compute(input);
                 var irisChosen = helper.DenormalizeOutputVectorToString(output)[0];
 
-                result.AppendFormat("({0:F2}, {1:F2}) -> predicted: {2}", x, y, irisChosen);
+                // "Dziwny" format żeby długość linii była taka sama (i "predicted" było w tym samym miejscu)
+                result.AppendFormat("({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}", x, y, irisChosen);
                 if (correct != string.Empty)
                 {
                     result.AppendFormat("(correct: {0})", correct);
