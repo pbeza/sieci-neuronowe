@@ -2,7 +2,6 @@
 {
     #region
 
-    using System;
     using System.Drawing;
     using System.Drawing.Imaging;
     using System.Runtime.InteropServices;
@@ -24,13 +23,15 @@
         /// </summary>
         /// <param name="path">Ścieżka do pliku</param>
         /// <param name="testFunction">Funkcja którą będziemy testować punkty</param>
+        /// <param name="dataSet">Zbiór punktów do narysowania (może być null)</param>
         /// <param name="helper">Helper do normalizacji</param>
         /// <param name="resolutionX">Rozdzielczość w x</param>
         /// <param name="resolutionY">j.w, dla y</param>
         public static void DrawArea(
             string path, 
             IMLRegression testFunction, 
-            NormalizationHelper helper,
+            MatrixMLDataSet dataSet, 
+            NormalizationHelper helper, 
             int resolutionX, 
             int resolutionY)
         {
@@ -48,10 +49,29 @@
                 {
                     double y = j * stepY;
                     IMLData output = testFunction.Compute(new BasicMLData(new[] { x, y }));
-                    var denormalized = helper.DenormalizeOutputVectorToString(output);
+                    string[] denormalized = helper.DenormalizeOutputVectorToString(output);
                     int result = int.Parse(denormalized[0]);
-                    int colorRGB = rgbFromInt(result);
+                    int colorRGB = rgbFromInt(result, dataSet != null);
                     Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
+                }
+            }
+
+            if (dataSet != null)
+            {
+                for (int k = 0; k < dataSet.Count; k++)
+                {
+                    double x = dataSet.Data[k][0];
+                    double y = dataSet.Data[k][1];
+                    var dummy = new BasicMLData(new[] { x, y, dataSet.Data[k][2] });
+                    string[] denormalized = helper.DenormalizeOutputVectorToString(dummy);
+                    int result = int.Parse(denormalized[0]);
+                    int colorRGB = rgbFromInt(result, false);
+                    var i = (int)(x * resolutionX);
+                    var j = (int)(y * resolutionY);
+                    if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)
+                    {
+                        Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
+                    }
                 }
             }
 
@@ -61,17 +81,17 @@
 
         #endregion
 
-        // Generuje tylko kilka kolorów sensownie, potem powtarza
         #region Methods
 
-        private static int rgbFromInt(int i)
+        private static int rgbFromInt(int i, bool lowIntensity)
         {
             bool red = i % 4 == 1;
             bool green = i % 2 == 0;
             bool blue = i % 3 == 0;
-            int r = red ? 255 : 0;
-            int g = green ? 255 : 0;
-            int b = blue ? 255 : 0;
+            int val = lowIntensity ? 63 : 255;
+            int r = red ? val : 0;
+            int g = green ? val : 0;
+            int b = blue ? val : 0;
             return (0x0ff << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | ((b & 0x0ff) << 0);
         }
 

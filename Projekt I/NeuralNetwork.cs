@@ -119,7 +119,7 @@ namespace sieci_neuronowe
                 writetext.WriteLine(@"Training error: " + TrainingModel.CalculateError(BestMethod, TrainingModel.TrainingDataset));
                 writetext.WriteLine(@"Validation error: " + TrainingModel.CalculateError(BestMethod, TrainingModel.ValidationDataset));
 
-                PictureGenerator.DrawArea("area_classification.bmp", BestMethod, NormHelper, 1024, 1024);
+                PictureGenerator.DrawArea("area_classification.bmp", BestMethod, TrainingModel.TrainingDataset, NormHelper, 1024, 1024);
 
                 EncogFramework.Instance.Shutdown();
             }
