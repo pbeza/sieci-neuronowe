@@ -89,7 +89,7 @@ namespace sieci_neuronowe
 
                 // Use a 5-fold cross-validated train.  Return the best method found.
 
-                BestMethod = (IMLRegression)TrainingModel.Crossvalidate(3, true);
+                BestMethod = (IMLRegression)TrainingModel.Crossvalidate(10, true);
 
                 // Display the training and validation errors.
 
@@ -157,25 +157,24 @@ namespace sieci_neuronowe
             csv.Close();
         }
 
-        public class StreamStatusReportable : IStatusReportable
+        private class StreamStatusReportable : IStatusReportable
         {
             private readonly StreamWriter _writter;
 
             public StreamStatusReportable(StreamWriter writter)
             {
-                _writter = writter;
+                this._writter = writter;
             }
 
-            public void Report(int total, int current,
-                               String message)
+            public void Report(int total, int current, string message)
             {
                 if (total == 0)
                 {
-                    _writter.WriteLine(current + " : " + message);
+                    this._writter.WriteLine(current + " : " + message);
                 }
                 else
                 {
-                    _writter.WriteLine(current + "/" + total + " : " + message);
+                    this._writter.WriteLine(current + "/" + total + " : " + message);
                 }
             }
         }
