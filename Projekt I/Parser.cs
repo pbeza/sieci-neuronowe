@@ -16,6 +16,7 @@ namespace sieci_neuronowe
                              LongRegressionOption = "regression";
         public ProblemType Problem { get; protected set; }
         public string InputFilePath { get; protected set; }
+        public bool Valid { get; protected set; }
 
         public Parser(string[] args)
         {
@@ -38,13 +39,15 @@ namespace sieci_neuronowe
                 showHelp = true;
             }
 
-            if (showHelp || unrecognized.Count != 1 || !File.Exists(args[0]))
+            if (showHelp || unrecognized.Count != 1 || !File.Exists(unrecognized[0]))
             {
                 PrintUsage(args);
+                Valid = false;
             }
             else
             {
-                InputFilePath = args[0];
+                InputFilePath = unrecognized[0];
+                Valid = true;
             }
         }
 
