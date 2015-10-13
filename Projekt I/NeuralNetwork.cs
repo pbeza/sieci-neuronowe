@@ -1,4 +1,8 @@
-﻿using Encog;
+﻿using System;
+using System.IO;
+using System.Text;
+
+using Encog;
 using Encog.ML;
 using Encog.ML.Data.Basic;
 using Encog.ML.Data.Versatile;
@@ -7,9 +11,6 @@ using Encog.ML.Data.Versatile.Sources;
 using Encog.ML.Factory;
 using Encog.ML.Model;
 using Encog.Util.CSV;
-using System;
-using System.IO;
-using System.Text;
 
 namespace sieci_neuronowe
 {
@@ -39,7 +40,7 @@ namespace sieci_neuronowe
         public void Run()
         {
             // TODO: dodać obsługę pierwszej linii z CSV (header = true w CSVDataSource).
-            CsvTrainingDataSource = new CSVDataSource(TrainingPath, false, CSVFormat.DecimalPoint);
+            CsvTrainingDataSource = new CSVDataSource(TrainingPath, true, CSVFormat.DecimalPoint);
             DataSet = new VersatileMLDataSet(CsvTrainingDataSource);
             DataSet.DefineSourceColumn(FirstColumn, 0, ColumnType.Continuous);
             DataSet.DefineSourceColumn(SecondColumn, 1, ColumnType.Continuous);
@@ -124,7 +125,7 @@ namespace sieci_neuronowe
 
         private void TestData(NormalizationHelper helper, IMLRegression bestMethod, TextWriter writetext)
         {
-            var csv = new ReadCSV(TestingPath, false, CSVFormat.DecimalPoint);
+            var csv = new ReadCSV(TestingPath, true, CSVFormat.DecimalPoint);
             var input = helper.AllocateInputVector();
 
             while (csv.Next())

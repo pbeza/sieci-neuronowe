@@ -10,15 +10,29 @@ using System;
 
 namespace sieci_neuronowe
 {
-    class Program
+    using System.IO;
+
+    static class Program
     {
         private const string LogFilePath = "out.txt";
 
-        static void Main(string[] args)
+        private const string TrainFilePath = ".\\data\\classification\\data.train.csv";
+
+        private const string TestingFilePath = ".\\data\\classification\\data.test.csv";
+
+        public static void Main(string[] args)
         {
             Console.WriteLine("> Starting application.");
-            var parser = new Parser(args);
-            var nn = new NeuralNetwork(parser.InputFilePath, parser.TestingFilePath, LogFilePath);
+            if (!File.Exists(TrainFilePath) || !File.Exists(TestingFilePath))
+            {
+                Console.WriteLine("No data files!");
+                return;
+            }
+
+            // Nie potrzeba parsera, może na koniec
+            // var parser = new Parser(args);
+            // var nn = new NeuralNetwork(parser.InputFilePath, parser.TestingFilePath, LogFilePath);
+            var nn = new NeuralNetwork(TrainFilePath, TestingFilePath, LogFilePath);
             nn.Run();
             Console.WriteLine("> Exiting application. Bye!");
         }
