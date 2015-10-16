@@ -12,7 +12,7 @@ namespace sieci_neuronowe
 {
     using System.IO;
 
-    static class Program
+    public static class Program
     {
         private const string LogFilePath = "out.txt";
 
