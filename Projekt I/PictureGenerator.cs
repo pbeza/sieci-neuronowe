@@ -85,9 +85,9 @@
 
         private static int rgbFromInt(int i, bool lowIntensity)
         {
-            bool red = (i & 2) != 0;
-            bool green = (i & 3) != 0;
-            bool blue = (i & 4) != 0;
+            bool red = (i % 4) == 1;
+            bool green = (i % 4) == 2;
+            bool blue = (i % 4) == 3;
             int val = lowIntensity ? 63 : 255;
             int r = red ? val : 0;
             int g = green ? val : 0;
