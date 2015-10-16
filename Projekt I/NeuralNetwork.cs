@@ -2,6 +2,7 @@
 {
     #region
 
+    using System.Collections.Generic;
     using System.IO;
     using System.Text;
 
@@ -17,10 +18,36 @@
     using Encog.ML.Model;
     using Encog.Neural.Networks;
     using Encog.Neural.Networks.Layers;
-    using Encog.Neural.Networks.Training.Propagation.Back;
     using Encog.Util.CSV;
 
     #endregion
+
+    public struct NeuroPoint
+    {
+        #region Fields
+
+        public int Category;
+
+        public int Correct;
+
+        public double X;
+
+        public double Y;
+
+        #endregion
+
+        #region Constructors and Destructors
+
+        public NeuroPoint(double x, double y, int category, int correct)
+        {
+            this.X = x;
+            this.Y = y;
+            this.Category = category;
+            this.Correct = correct;
+        }
+
+        #endregion
+    }
 
     public class NeuralNetwork
     {
@@ -94,21 +121,28 @@
                 // Choose whatever is the default training type for this model.
                 trainingModel.SelectTrainingType(dataSet);
 
-                IContainsFlat network = CreateNetwork();
+                /*
+                BasicNetwork network = CreateNetwork();
 
                 // TODO: Ma być online, tzn. training dataset pusty (niemożliwe z tą implementacją?)
-                // var usedMethod = (IMLRegression)new Backpropagation(network, dataSet, 0.1, 0.1).Method;
+                var backpropagation = new Backpropagation(network, dataSet, 0.000001, 0.0001);
+                for (int i = 0; i < 100; i++)
+                {
+                    writetext.WriteLine(@"Backpropagation error: " + backpropagation.Error);
+                    backpropagation.Iteration(100);
+                }
+                 */
+
+                // var usedMethod = (IMLRegression)backpropagation.Method;
 
                 // Use a 5-fold cross-validated train.  Return the best method found.
                 var usedMethod = (IMLRegression)trainingModel.Crossvalidate(5, true);
 
                 // Display the training and validation errors.
                 writetext.WriteLine(
-                    @"Training error: "
-                    + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
+                    @"Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
                 writetext.WriteLine(
-                    @"Validation error: "
-                    + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
+                    @"Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
 
                 // Display our normalization parameters.
                 NormalizationHelper normHelper = dataSet.NormHelper;
@@ -117,23 +151,26 @@
                 // Display the final model.
                 writetext.WriteLine(@"Final model: " + usedMethod);
 
-                TestData(this.testingPath, normHelper, usedMethod, writetext);
-                TestData(this.testingPath, normHelper, usedMethod, writetext);
+                var allPoints = new List<NeuroPoint>();
+
+                TestData(this.trainingPath, normHelper, usedMethod, allPoints);
+                TestData(this.testingPath, normHelper, usedMethod, allPoints);
+                PrintPoints(allPoints, writetext);
 
                 writetext.WriteLine(
-                    @"Training error: "
-                    + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
+                    @"Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
                 writetext.WriteLine(
-                    @"Validation error: "
-                    + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
+                    @"Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
 
                 PictureGenerator.DrawArea(
                     "area_classification.bmp", 
                     usedMethod, 
-                    trainingModel.TrainingDataset, 
+                    allPoints, 
                     normHelper, 
                     1024, 
                     1024);
+
+                // writetext.WriteLine(network.DumpWeights());
             }
 
             EncogFramework.Instance.Shutdown();
@@ -143,15 +180,29 @@
 
         #region Methods
 
-        private static IContainsFlat CreateNetwork()
+        private static BasicNetwork CreateNetwork()
         {
             var network = new BasicNetwork();
 
-            // TODO: Wszystkie parametry konfigurowalne dla każdego layera
-            var layer = new BasicLayer(new ActivationLinear(), true, 2);
+            // TODO: Wszystkie parametry konfigurowalne dla każdego layera (poza pierwszym bo input?)
+            var layer = new BasicLayer(new ActivationLinear(), false, 2);
             network.AddLayer(layer);
-            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 2));
+            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 8));
+            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 1));
             network.Structure.FinalizeStructure();
+
+            // Zrób pełną sieć
+            for (int i = 0; i < network.LayerCount - 1; i++)
+            {
+                for (int j = 0; j < network.GetLayerNeuronCount(i); j++)
+                {
+                    for (int k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
+                    {
+                        network.SetWeight(i, j, k, 1.0);
+                    }
+                }
+            }
+
             return network;
         }
 
@@ -169,41 +220,55 @@
 
             // Map the prediction column to the output of the model, and all other columns to the input.
             dataSet.DefineSingleOutputOthersInput(outputColumnDefinition);
+            dataSet.LagWindowSize = 1;
             return dataSet;
+        }
+
+        private static void PrintPoints(IEnumerable<NeuroPoint> points, StreamWriter writetext)
+        {
+            foreach (var point in points)
+            {
+                var result = new StringBuilder();
+
+                // "Dziwny" format żeby długość linii była taka sama (i "predicted" było w tym samym miejscu)
+                result.AppendFormat(
+                    "({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}", 
+                    point.X, 
+                    point.Y, 
+                    point.Category);
+                if (point.Correct >= 0)
+                {
+                    result.AppendFormat("(correct: {0})", point.Correct);
+                }
+
+                writetext.WriteLine(result);
+            }
         }
 
         private static void TestData(
             string testedPath, 
             NormalizationHelper helper, 
             IMLRegression usedMethod, 
-            TextWriter writetext)
+            List<NeuroPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
             IMLData input = helper.AllocateInputVector();
 
             while (csv.Next())
             {
-                var result = new StringBuilder();
                 double x = csv.GetDouble(0);
                 double y = csv.GetDouble(1);
-                string correct = string.Empty;
+                int correct = -1;
                 if (csv.ColumnCount > 2)
                 {
-                    correct = csv.Get(2);
+                    correct = (int)csv.GetDouble(2);
                 }
 
                 helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, ((BasicMLData)input).Data, false);
                 IMLData output = usedMethod.Compute(input);
-                string irisChosen = helper.DenormalizeOutputVectorToString(output)[0];
-
-                // "Dziwny" format żeby długość linii była taka sama (i "predicted" było w tym samym miejscu)
-                result.AppendFormat("({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}", x, y, irisChosen);
-                if (correct != string.Empty)
-                {
-                    result.AppendFormat("(correct: {0})", correct);
-                }
-
-                writetext.WriteLine(result);
+                string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
+                int computed = int.Parse(stringChosen);
+                results.Add(new NeuroPoint(x, y, computed, correct));
             }
 
             csv.Close();

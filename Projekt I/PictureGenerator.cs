@@ -2,8 +2,10 @@
 {
     #region
 
+    using System.Collections.Generic;
     using System.Drawing;
     using System.Drawing.Imaging;
+    using System.Linq;
     using System.Runtime.InteropServices;
 
     using Encog.ML;
@@ -23,14 +25,14 @@
         /// </summary>
         /// <param name="path">Ścieżka do pliku</param>
         /// <param name="testFunction">Funkcja którą będziemy testować punkty</param>
-        /// <param name="dataSet">Zbiór punktów do narysowania (może być null)</param>
+        /// <param name="points">Zbiór zbiorów punktów do narysowania (może być pusty)</param>
         /// <param name="helper">Helper do normalizacji</param>
         /// <param name="resolutionX">Rozdzielczość w x</param>
         /// <param name="resolutionY">j.w, dla y</param>
         public static void DrawArea(
             string path, 
             IMLRegression testFunction, 
-            MatrixMLDataSet dataSet, 
+            List<NeuroPoint> points, 
             NormalizationHelper helper, 
             int resolutionX, 
             int resolutionY)
@@ -40,38 +42,44 @@
                 new Rectangle(0, 0, resolutionX, resolutionY), 
                 ImageLockMode.WriteOnly, 
                 PixelFormat.Format32bppArgb);
-            double stepX = 1.0 / resolutionX;
-            double stepY = 1.0 / resolutionY;
+            const double ResolutionMult = 3.0;
+            const double CoordOffset = -1.5;
+            double stepX = ResolutionMult / resolutionX;
+            double stepY = ResolutionMult / resolutionY;
             for (int i = 0; i < resolutionX; i++)
             {
-                double x = i * stepX;
+                double x = (i * stepX) + CoordOffset;
                 for (int j = 0; j < resolutionY; j++)
                 {
-                    double y = j * stepY;
+                    double y = (j * stepY) + CoordOffset;
                     IMLData output = testFunction.Compute(new BasicMLData(new[] { x, y }));
                     string[] denormalized = helper.DenormalizeOutputVectorToString(output);
                     int result = int.Parse(denormalized[0]);
-                    int colorRGB = rgbFromInt(result, dataSet != null);
+                    int colorRGB = rgbFromInt(result, points.Any());
                     Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
                 }
             }
 
-            if (dataSet != null)
+            foreach (var pt in points)
             {
-                for (int k = 0; k < dataSet.Count; k++)
+                double x = pt.X;
+                double y = pt.Y;
+                int colorRGB;
+                if (pt.Correct >= 0)
                 {
-                    double x = dataSet.Data[k][0];
-                    double y = dataSet.Data[k][1];
-                    var dummy = new BasicMLData(new[] { x, y, dataSet.Data[k][2] });
-                    string[] denormalized = helper.DenormalizeOutputVectorToString(dummy);
-                    int result = int.Parse(denormalized[0]);
-                    int colorRGB = rgbFromInt(result, false);
-                    var i = (int)(x * resolutionX);
-                    var j = (int)(y * resolutionY);
-                    if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)
-                    {
-                        Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
-                    }
+                    colorRGB = rgbFromInt(pt.Correct, false);
+                }
+                else
+                {
+                    // Czarny punkt
+                    colorRGB = 0x0ff << 24;
+                }
+
+                var i = (int)((x - CoordOffset) / stepX);
+                var j = (int)((y - CoordOffset) / stepY);
+                if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)
+                {
+                    Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
                 }
             }
 
