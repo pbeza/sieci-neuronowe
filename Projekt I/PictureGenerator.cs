@@ -52,9 +52,10 @@
                 for (int j = 0; j < resolutionY; j++)
                 {
                     double y = (j * stepY) + CoordOffset;
-                    IMLData output = testFunction.Compute(new BasicMLData(new[] { x, y }));
-                    string[] denormalized = helper.DenormalizeOutputVectorToString(output);
-                    int result = int.Parse(denormalized[0]);
+                    IMLData output =
+                        new BasicMLData(new[] { x, y, testFunction.Compute(new BasicMLData(new[] { x, y }))[0] });
+                    string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
+                    int result = int.Parse(stringChosen);
                     int colorRGB = rgbFromInt(result, points.Any());
                     Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
                 }

@@ -2,6 +2,7 @@
 {
     #region
 
+    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Text;
@@ -18,6 +19,7 @@
     using Encog.ML.Model;
     using Encog.Neural.Networks;
     using Encog.Neural.Networks.Layers;
+    using Encog.Neural.Networks.Training.Propagation.Back;
     using Encog.Util.CSV;
 
     #endregion
@@ -69,6 +71,8 @@
 
         private readonly string trainingPath;
 
+        private Random rng;
+
         #endregion
 
         #region Constructors and Destructors
@@ -78,6 +82,7 @@
             this.testingPath = testingPath ?? trainingPath;
             this.trainingPath = trainingPath;
             this.logOutputPath = logOutputPath;
+            this.rng = new Random(1001);
         }
 
         #endregion
@@ -116,27 +121,32 @@
                 // Hold back some data for a final validation.
                 // Shuffle the data into a random ordering.
                 // Use a seed of 1001 so that we always use the same holdback and will get more consistent results.
-                trainingModel.HoldBackValidation(0.3, true, 1001);
+                trainingModel.HoldBackValidation(0.1, true, 1001);
 
                 // Choose whatever is the default training type for this model.
                 trainingModel.SelectTrainingType(dataSet);
 
-                /*
-                BasicNetwork network = CreateNetwork();
+                BasicNetwork network = CreateNetwork(this.rng);
 
                 // TODO: Ma być online, tzn. training dataset pusty (niemożliwe z tą implementacją?)
-                var backpropagation = new Backpropagation(network, dataSet, 0.000001, 0.0001);
-                for (int i = 0; i < 100; i++)
+                var backpropagation = new Backpropagation(network, dataSet, 0.00001, 0.01);
+                const int IterationCount = 10000;
+                for (int i = 0; i < IterationCount; i++)
                 {
-                    writetext.WriteLine(@"Backpropagation error: " + backpropagation.Error);
-                    backpropagation.Iteration(100);
+                    backpropagation.Iteration();
+                    if (i % (IterationCount / 10) == 0)
+                    {
+                        double err = backpropagation.Error;
+                        writetext.WriteLine(@"Backpropagation error: " + err);
+                        Console.WriteLine(@"Iteration progress: " + i + "/" + IterationCount + ", error: " + err);
+                    }
                 }
-                 */
 
-                // var usedMethod = (IMLRegression)backpropagation.Method;
+                PrintWeights(network, writetext);
+                var usedMethod = (IMLRegression)backpropagation.Method;
 
                 // Use a 5-fold cross-validated train.  Return the best method found.
-                var usedMethod = (IMLRegression)trainingModel.Crossvalidate(5, true);
+                // var usedMethod = (IMLRegression)trainingModel.Crossvalidate(5, true);
 
                 // Display the training and validation errors.
                 writetext.WriteLine(
@@ -162,15 +172,7 @@
                 writetext.WriteLine(
                     @"Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
 
-                PictureGenerator.DrawArea(
-                    "area_classification.bmp", 
-                    usedMethod, 
-                    allPoints, 
-                    normHelper, 
-                    1024, 
-                    1024);
-
-                // writetext.WriteLine(network.DumpWeights());
+                PictureGenerator.DrawArea("area_classification.bmp", usedMethod, allPoints, normHelper, 1024, 1024);
             }
 
             EncogFramework.Instance.Shutdown();
@@ -180,14 +182,13 @@
 
         #region Methods
 
-        private static BasicNetwork CreateNetwork()
+        private static BasicNetwork CreateNetwork(Random rng)
         {
             var network = new BasicNetwork();
 
             // TODO: Wszystkie parametry konfigurowalne dla każdego layera (poza pierwszym bo input?)
-            var layer = new BasicLayer(new ActivationLinear(), false, 2);
-            network.AddLayer(layer);
-            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 8));
+            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 2));
+            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
             network.AddLayer(new BasicLayer(new ActivationLinear(), true, 1));
             network.Structure.FinalizeStructure();
 
@@ -198,7 +199,7 @@
                 {
                     for (int k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
                     {
-                        network.SetWeight(i, j, k, 1.0);
+                        network.SetWeight(i, j, k, (rng.NextDouble() - 0.5) * 0.1);
                     }
                 }
             }
@@ -245,6 +246,21 @@
             }
         }
 
+        private static void PrintWeights(BasicNetwork network, TextWriter writer)
+        {
+            for (int i = 0; i < network.LayerCount - 1; i++)
+            {
+                writer.WriteLine("Layer {0}, neurons number {1}", i, network.GetLayerNeuronCount(i));
+                for (int j = 0; j < network.GetLayerNeuronCount(i); j++)
+                {
+                    for (int k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
+                    {
+                        writer.WriteLine("{0}->{1}: {2:F3}", j, k, network.GetWeight(i, j, k));
+                    }
+                }
+            }
+        }
+
         private static void TestData(
             string testedPath, 
             NormalizationHelper helper, 
@@ -252,7 +268,6 @@
             List<NeuroPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
-            IMLData input = helper.AllocateInputVector();
 
             while (csv.Next())
             {
@@ -264,8 +279,9 @@
                     correct = (int)csv.GetDouble(2);
                 }
 
-                helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, ((BasicMLData)input).Data, false);
-                IMLData output = usedMethod.Compute(input);
+                var data = new BasicMLData(new[] { x, y });
+                helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, data.Data, false);
+                IMLData output = new BasicMLData(new[] { x, y, usedMethod.Compute(data)[0] });
                 string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 int computed = int.Parse(stringChosen);
                 results.Add(new NeuroPoint(x, y, computed, correct));
