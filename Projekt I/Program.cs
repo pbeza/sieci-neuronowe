@@ -21,7 +21,10 @@ namespace sieci_neuronowe
                     var nn = new NeuralNetwork(parser);
                     nn.Run();
                 }
-                parser.PrintUsage(args);
+                else
+                {
+                    parser.PrintUsage(args);
+                }
             }
             else
             {

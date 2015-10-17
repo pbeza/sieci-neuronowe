@@ -125,7 +125,7 @@ namespace sieci_neuronowe
             }
             else if (File.Exists(LogFilePath))
             {
-                Console.WriteLine("Warning! Log file " + LogFilePath + "is going to be overwritten.");
+                Console.WriteLine("Warning! Log file " + LogFilePath + " is going to be overwritten.");
             }
 
             if (classification && regression)
