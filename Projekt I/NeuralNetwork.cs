@@ -1,4 +1,6 @@
-﻿namespace sieci_neuronowe
+﻿using Encog.ML.Data;
+
+namespace sieci_neuronowe
 {
     #region Usings
 
@@ -66,7 +68,7 @@
 
         private readonly string _logOutputPath;
 
-        private Random rng;
+        private readonly Random _rng;
 
         #endregion
 
@@ -81,7 +83,7 @@
             _testingPath = testingPath ?? trainingPath;
             _trainingPath = trainingPath;
             _logOutputPath = logOutputPath;
-            this.rng = new Random(1001);
+            _rng = new Random(1001);
         }
 
         #endregion
@@ -125,19 +127,19 @@
                 // Choose whatever is the default training type for this model.
                 trainingModel.SelectTrainingType(dataSet);
 
-                BasicNetwork network = CreateNetwork(this.rng);
+                var network = CreateNetwork(_rng);
 
                 // TODO: Ma być online, tzn. training dataset pusty (niemożliwe z tą implementacją?)
                 var backpropagation = new Backpropagation(network, dataSet, 0.00001, 0.01);
-                const int IterationCount = 10000;
-                for (int i = 0; i < IterationCount; i++)
+                const int iterationCount = 10000;
+                for (int i = 0; i < iterationCount; i++)
                 {
                     backpropagation.Iteration();
-                    if (i % (IterationCount / 10) == 0)
+                    if (i % (iterationCount / 10) == 0)
                     {
                         double err = backpropagation.Error;
                         writetext.WriteLine(@"Backpropagation error: " + err);
-                        Console.WriteLine(@"Iteration progress: " + i + "/" + IterationCount + ", error: " + err);
+                        Console.WriteLine(@"Iteration progress: " + i + "/" + iterationCount + ", error: " + err);
                     }
                 }
 
@@ -280,6 +282,7 @@
                 var data = new BasicMLData(new[] { x, y });
                 helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, data.Data, false);
                 IMLData output = new BasicMLData(new[] { x, y, usedMethod.Compute(data)[0] });
+                string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 var computed = int.Parse(stringChosen);
                 results.Add(new NeuroPoint(x, y, computed, correct));
             }

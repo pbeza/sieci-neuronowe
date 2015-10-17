@@ -63,6 +63,9 @@ namespace sieci_neuronowe
             Console.WriteLine("          Path to CSV file with testing set.\n" +
                               "          If not given, testing set is the same as learning set.");
             Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1} LOG_FILE_PATH", ShortLogPathOption, LongLogPathOption);
+            Console.WriteLine("          Path to log text file which will be created.");
+            Console.WriteLine();
             Console.WriteLine("  Exactly one of the following options is required:");
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1}", ShortClassificationOption, LongClassificationOption);
@@ -111,20 +114,21 @@ namespace sieci_neuronowe
             {
                 TestingSetFilePath = LearningSetFilePath;
             }
+            else if (!File.Exists(TestingSetFilePath))
+            {
+                MessageForUser = "Given testing file doesn't exist.";
+            }
+
             if (LogFilePath == null)
             {
                 LogFilePath = DefaultLogFilePath;
             }
             else if (File.Exists(LogFilePath))
             {
-                Console.WriteLine("Warning. Log file is going to be overwritten.");
+                Console.WriteLine("Warning! Log file " + LogFilePath + "is going to be overwritten.");
             }
 
-            if (TestingSetFilePath != null && !File.Exists(TestingSetFilePath))
-            {
-                MessageForUser = "Given testing file doesn't exist.";
-            }
-            else if (classification && regression)
+            if (classification && regression)
             {
                 MessageForUser = "Both classification and regression flags are set.";
             }

@@ -1,11 +1,13 @@
-﻿namespace sieci_neuronowe
+﻿using System.Linq;
+using Encog.ML.Data;
+
+namespace sieci_neuronowe
 {
     #region
 
     using System.Collections.Generic;
     using System.Drawing;
     using System.Drawing.Imaging;
-    using System.Linq;
     using System.Runtime.InteropServices;
 
     using Encog.ML;
@@ -19,8 +21,8 @@
         #region Public Methods and Operators
 
         /// <summary>
-        ///     Generuje obrazek przedstawiający jak sieć dzieli przestrzeń.
-        ///     Testuje tylko punkty z zakresu 0.0-1.0.
+        /// Generuje obrazek przedstawiający jak sieć dzieli przestrzeń.
+        /// Testuje tylko punkty z zakresu 0.0 - 1.0.
         /// </summary>
         /// <param name="path">Ścieżka do pliku</param>
         /// <param name="testFunction">Funkcja którą będziemy testować punkty</param>
@@ -29,17 +31,17 @@
         /// <param name="resolutionX">Rozdzielczość w x</param>
         /// <param name="resolutionY">j.w, dla y</param>
         public static void DrawArea(
-            string path, 
-            IMLRegression testFunction, 
-            List<NeuroPoint> points, 
-            NormalizationHelper helper, 
-            int resolutionX, 
+            string path,
+            IMLRegression testFunction,
+            List<NeuroPoint> points,
+            NormalizationHelper helper,
+            int resolutionX,
             int resolutionY)
         {
             var bmp = new Bitmap(resolutionX, resolutionY);
-            BitmapData lck = bmp.LockBits(
-                new Rectangle(0, 0, resolutionX, resolutionY), 
-                ImageLockMode.WriteOnly, 
+            var lck = bmp.LockBits(
+                new Rectangle(0, 0, resolutionX, resolutionY),
+                ImageLockMode.WriteOnly,
                 PixelFormat.Format32bppArgb);
             const double resolutionMult = 3.0;
             const double coordOffset = -1.5;
@@ -53,8 +55,9 @@
                     var y = (j * stepY) + coordOffset;
                     IMLData output =
                         new BasicMLData(new[] { x, y, testFunction.Compute(new BasicMLData(new[] { x, y }))[0] });
-                    string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
-                    int result = int.Parse(stringChosen);
+                    var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
+                    var result = int.Parse(stringChosen);
+                    var colorRGB = RGBFromInt(result, points.Any());
                     Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
                 }
             }
