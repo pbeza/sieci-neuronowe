@@ -1,22 +1,21 @@
 namespace sieci_neuronowe
 {
-    using System.IO;
-
     using Encog;
+    using System.IO;
 
     public class StreamStatusReportable : IStatusReportable
     {
         #region Fields
 
-        private readonly StreamWriter writter;
+        private readonly StreamWriter _streamWriter;
 
         #endregion
 
         #region Constructors and Destructors
 
-        public StreamStatusReportable(StreamWriter writter)
+        public StreamStatusReportable(StreamWriter streamWriter)
         {
-            this.writter = writter;
+            _streamWriter = streamWriter;
         }
 
         #endregion
@@ -25,14 +24,7 @@ namespace sieci_neuronowe
 
         public void Report(int total, int current, string message)
         {
-            if (total == 0)
-            {
-                this.writter.WriteLine(current + " : " + message);
-            }
-            else
-            {
-                this.writter.WriteLine(current + "/" + total + " : " + message);
-            }
+            _streamWriter.WriteLine(current + (total != 0 ? "/" + total : "") + " : " + message);
         }
 
         #endregion

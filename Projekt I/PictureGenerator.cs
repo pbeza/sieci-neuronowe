@@ -9,7 +9,6 @@
     using System.Runtime.InteropServices;
 
     using Encog.ML;
-    using Encog.ML.Data;
     using Encog.ML.Data.Basic;
     using Encog.ML.Data.Versatile;
 
@@ -42,33 +41,32 @@
                 new Rectangle(0, 0, resolutionX, resolutionY), 
                 ImageLockMode.WriteOnly, 
                 PixelFormat.Format32bppArgb);
-            const double ResolutionMult = 3.0;
-            const double CoordOffset = -1.5;
-            double stepX = ResolutionMult / resolutionX;
-            double stepY = ResolutionMult / resolutionY;
-            for (int i = 0; i < resolutionX; i++)
+            const double resolutionMult = 3.0;
+            const double coordOffset = -1.5;
+            var stepX = resolutionMult / resolutionX;
+            var stepY = resolutionMult / resolutionY;
+            for (var i = 0; i < resolutionX; i++)
             {
-                double x = (i * stepX) + CoordOffset;
-                for (int j = 0; j < resolutionY; j++)
+                var x = (i * stepX) + coordOffset;
+                for (var j = 0; j < resolutionY; j++)
                 {
-                    double y = (j * stepY) + CoordOffset;
+                    var y = (j * stepY) + coordOffset;
                     IMLData output =
                         new BasicMLData(new[] { x, y, testFunction.Compute(new BasicMLData(new[] { x, y }))[0] });
                     string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                     int result = int.Parse(stringChosen);
-                    int colorRGB = rgbFromInt(result, points.Any());
                     Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
                 }
             }
 
             foreach (var pt in points)
             {
-                double x = pt.X;
-                double y = pt.Y;
+                var x = pt.X;
+                var y = pt.Y;
                 int colorRGB;
                 if (pt.Correct >= 0)
                 {
-                    colorRGB = rgbFromInt(pt.Correct, false);
+                    colorRGB = RGBFromInt(pt.Correct, false);
                 }
                 else
                 {
@@ -76,8 +74,8 @@
                     colorRGB = 0x0ff << 24;
                 }
 
-                var i = (int)((x - CoordOffset) / stepX);
-                var j = (int)((y - CoordOffset) / stepY);
+                var i = (int)((x - coordOffset) / stepX);
+                var j = (int)((y - coordOffset) / stepY);
                 if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)
                 {
                     Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
@@ -92,15 +90,15 @@
 
         #region Methods
 
-        private static int rgbFromInt(int i, bool lowIntensity)
+        private static int RGBFromInt(int i, bool lowIntensity)
         {
-            bool red = (i % 4) == 1;
-            bool green = (i % 4) == 2;
-            bool blue = (i % 4) == 3;
-            int val = lowIntensity ? 63 : 255;
-            int r = red ? val : 0;
-            int g = green ? val : 0;
-            int b = blue ? val : 0;
+            var red = (i % 4) == 1;
+            var green = (i % 4) == 2;
+            var blue = (i % 4) == 3;
+            var val = lowIntensity ? 63 : 255;
+            var r = red ? val : 0;
+            var g = green ? val : 0;
+            var b = blue ? val : 0;
             return (0x0ff << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | ((b & 0x0ff) << 0);
         }
 

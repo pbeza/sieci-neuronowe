@@ -1,16 +1,11 @@
 ﻿namespace sieci_neuronowe
 {
-    #region
+    #region Usings
 
     using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Text;
-
     using Encog;
     using Encog.Engine.Network.Activation;
     using Encog.ML;
-    using Encog.ML.Data;
     using Encog.ML.Data.Basic;
     using Encog.ML.Data.Versatile;
     using Encog.ML.Data.Versatile.Columns;
@@ -21,6 +16,9 @@
     using Encog.Neural.Networks.Layers;
     using Encog.Neural.Networks.Training.Propagation.Back;
     using Encog.Util.CSV;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text;
 
     #endregion
 
@@ -29,11 +27,8 @@
         #region Fields
 
         public int Category;
-
         public int Correct;
-
         public double X;
-
         public double Y;
 
         #endregion
@@ -42,10 +37,10 @@
 
         public NeuroPoint(double x, double y, int category, int correct)
         {
-            this.X = x;
-            this.Y = y;
-            this.Category = category;
-            this.Correct = correct;
+            X = x;
+            Y = y;
+            Category = category;
+            Correct = correct;
         }
 
         #endregion
@@ -57,19 +52,19 @@
 
         private const string FirstColumn = "x";
 
-        private const string PredictColumn = "cls";
-
         private const string SecondColumn = "y";
+
+        private const string PredictColumn = "cls";
 
         #endregion
 
         #region Fields
 
-        private readonly string logOutputPath;
+        private readonly string _trainingPath;
 
-        private readonly string testingPath;
+        private readonly string _testingPath;
 
-        private readonly string trainingPath;
+        private readonly string _logOutputPath;
 
         private Random rng;
 
@@ -77,11 +72,15 @@
 
         #region Constructors and Destructors
 
+        public NeuralNetwork(Parser parser)
+            : this(parser.LearningSetFilePath, parser.TestingSetFilePath, parser.LogFilePath)
+        { }
+
         public NeuralNetwork(string trainingPath, string testingPath, string logOutputPath)
         {
-            this.testingPath = testingPath ?? trainingPath;
-            this.trainingPath = trainingPath;
-            this.logOutputPath = logOutputPath;
+            _testingPath = testingPath ?? trainingPath;
+            _trainingPath = trainingPath;
+            _logOutputPath = logOutputPath;
             this.rng = new Random(1001);
         }
 
@@ -96,8 +95,8 @@
             // training set.  You do not need to retrain, simply use the NormalizationHelper
             // class.  After you train, you can save the NormalizationHelper to later
             // normalize and denormalize your data.
-            var csvTrainingDataSource = new CSVDataSource(this.trainingPath, true, CSVFormat.DecimalPoint);
-            VersatileMLDataSet dataSet = PrepareDataSet(csvTrainingDataSource);
+            var csvTrainingDataSource = new CSVDataSource(_trainingPath, true, CSVFormat.DecimalPoint);
+            var dataSet = PrepareDataSet(csvTrainingDataSource);
             csvTrainingDataSource.Close();
 
             // Create feedforward neural network as the model type. MLMethodFactory.TYPE_FEEDFORWARD.
@@ -110,7 +109,7 @@
             trainingModel.SelectMethod(dataSet, MLMethodFactory.TypeFeedforward);
 
             // Send any output to the console.
-            using (var writetext = new StreamWriter(this.logOutputPath))
+            using (var writetext = new StreamWriter(_logOutputPath))
             {
                 trainingModel.Report = new StreamStatusReportable(writetext);
 
@@ -155,7 +154,7 @@
                     @"Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
 
                 // Display our normalization parameters.
-                NormalizationHelper normHelper = dataSet.NormHelper;
+                var normHelper = dataSet.NormHelper;
                 writetext.WriteLine(normHelper);
 
                 // Display the final model.
@@ -163,8 +162,8 @@
 
                 var allPoints = new List<NeuroPoint>();
 
-                TestData(this.trainingPath, normHelper, usedMethod, allPoints);
-                TestData(this.testingPath, normHelper, usedMethod, allPoints);
+                TestData(_trainingPath, normHelper, usedMethod, allPoints);
+                TestData(_testingPath, normHelper, usedMethod, allPoints);
                 PrintPoints(allPoints, writetext);
 
                 writetext.WriteLine(
@@ -193,11 +192,11 @@
             network.Structure.FinalizeStructure();
 
             // Zrób pełną sieć
-            for (int i = 0; i < network.LayerCount - 1; i++)
+            for (var i = 0; i < network.LayerCount - 1; i++)
             {
-                for (int j = 0; j < network.GetLayerNeuronCount(i); j++)
+                for (var j = 0; j < network.GetLayerNeuronCount(i); j++)
                 {
-                    for (int k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
+                    for (var k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
                     {
                         network.SetWeight(i, j, k, (rng.NextDouble() - 0.5) * 0.1);
                     }
@@ -214,7 +213,7 @@
             dataSet.DefineSourceColumn(SecondColumn, 1, ColumnType.Continuous);
 
             // Column that we are trying to predict.
-            ColumnDefinition outputColumnDefinition = dataSet.DefineSourceColumn(PredictColumn, 2, ColumnType.Nominal);
+            var outputColumnDefinition = dataSet.DefineSourceColumn(PredictColumn, 2, ColumnType.Nominal);
 
             // Analyze the data, determine the min/max/mean/sd of every column.
             dataSet.Analyze();
@@ -231,11 +230,10 @@
             {
                 var result = new StringBuilder();
 
-                // "Dziwny" format żeby długość linii była taka sama (i "predicted" było w tym samym miejscu)
                 result.AppendFormat(
-                    "({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}", 
-                    point.X, 
-                    point.Y, 
+                    "({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}",
+                    point.X,
+                    point.Y,
                     point.Category);
                 if (point.Correct >= 0)
                 {
@@ -262,18 +260,18 @@
         }
 
         private static void TestData(
-            string testedPath, 
-            NormalizationHelper helper, 
-            IMLRegression usedMethod, 
-            List<NeuroPoint> results)
+            string testedPath,
+            NormalizationHelper helper,
+            IMLRegression usedMethod,
+            ICollection<NeuroPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
             while (csv.Next())
             {
-                double x = csv.GetDouble(0);
-                double y = csv.GetDouble(1);
-                int correct = -1;
+                var x = csv.GetDouble(0);
+                var y = csv.GetDouble(1);
+                var correct = -1;
                 if (csv.ColumnCount > 2)
                 {
                     correct = (int)csv.GetDouble(2);
@@ -282,8 +280,7 @@
                 var data = new BasicMLData(new[] { x, y });
                 helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, data.Data, false);
                 IMLData output = new BasicMLData(new[] { x, y, usedMethod.Compute(data)[0] });
-                string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
-                int computed = int.Parse(stringChosen);
+                var computed = int.Parse(stringChosen);
                 results.Add(new NeuroPoint(x, y, computed, correct));
             }
 
