@@ -1,11 +1,32 @@
-﻿# This file contains sample definition of simple neural network with one hidden layer.
-# Comments begin with '#' character.
-# All whitespaces are ignored.
+﻿#  WHAT IS IT?
+#
+# This file:
+#    1. contains definition of simple neural network with one hidden layer,
+#    2. is NOT meant to be any sensible neural network for any purpose,
+#    3. presents file's neural network text format.
+#
+# FORMAT
+#
+# Format of this file is simple. It consists of 3 sections:
+#    1. declaration of number of neurons in all layers,
+#    2. declaration of biases in all layers,
+#    3. weights of connection between neighboring layers for the subsequent
+#       neurons.
+#
+# NOTE
+#
+#    1. Double and float numbers use comma or dot
+#       character depending on your system language.
+#    2. All whitespaces are ignored.
+#    3. Comments begin with '#' character.
+#
 
-2 3 1								# Number of neurons in: input layer, hidden layer and output layer
+2			3			1			# Number of neurons in: input layer, hidden layer and output layer
+
+1,0			2,0			3,0			# Biases for input layer, hidden layer and output layer
 
 0,00		0,01		0,02		# Weights of connections between 1st and 2nd layer starting from 1st vertex of 1st layer
-0,10		1,11		1,12		# Weights of connections between 1st and 2nd layer starting from 2nd vertex of 1st layer
+0,10		0,11		0,12		# Weights of connections between 1st and 2nd layer starting from 2nd vertex of 1st layer
 
 1,00								# Weight  of connection  between 2nd and 3rd layer starting from 1st vertex of 2nd layer
 2,00								# Weight  of connection  between 2nd and 3rd layer starting from 2nd vertex of 2nd layer

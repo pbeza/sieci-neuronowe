@@ -1,8 +1,8 @@
+using Encog;
+using System.IO;
+
 namespace sieci_neuronowe
 {
-    using Encog;
-    using System.IO;
-
     public class StreamStatusReportable : IStatusReportable
     {
         private readonly StreamWriter _streamWriter;

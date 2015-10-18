@@ -19,7 +19,7 @@ namespace sieci_neuronowe
                 {
                     var networkFromFile = NeuralNetworkFileParser.Parse(parser.NeuralNetworkDefinitionFilePath);
                     var nn = new NeuralNetwork(parser);
-                    //nn.Run();
+                    nn.Run();
                 }
                 else
                 {
