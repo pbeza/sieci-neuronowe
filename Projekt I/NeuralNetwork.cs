@@ -119,17 +119,15 @@
 
             var backpropagation = new Backpropagation(network, dataSet, 0.00003, 0.001);
             backpropagation.BatchSize = 1; // Online
-            const int IterationCount = 2000;
+            const int IterationCount = 1000;
             for (int i = 0; i < IterationCount; i++)
             {
                 backpropagation.Iteration();
-                /*
                 if (i % 100 == 0)
                 {
-                    trainingErrorWriter.WriteLine(trainingModel.CalculateError(backpropagation.Network, trainingModel.TrainingDataset));
-                    verificationErrorWriter.WriteLine(trainingModel.CalculateError(backpropagation.Network, trainingModel.ValidationDataset));
+                    trainingErrorWriter.WriteLine(CalcError(network, trainingModel.TrainingDataset));
+                    verificationErrorWriter.WriteLine(CalcError(network, trainingModel.ValidationDataset));
                 }
-                 */
                 if (i % (IterationCount / 10) != 0)
                 {
                     continue;
@@ -155,13 +153,19 @@
 
             // Display the final model.
             writetext.WriteLine("Final model: " + usedMethod);
-
+            /*
             writetext.WriteLine(
                 "Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
             writetext.WriteLine(
                 "Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
+            */
 
-            writetext.WriteLine( "Neuron weight dump: " + network.DumpWeights() );
+            writetext.WriteLine(
+                "Training error: " + CalcError(usedMethod, trainingModel.TrainingDataset));
+            writetext.WriteLine(
+                "Validation error: " + CalcError(usedMethod, trainingModel.ValidationDataset));
+
+            writetext.WriteLine("Neuron weight dump: " + network.DumpWeights());
 
             var allPoints = new List<NeuroPoint>();
 
@@ -178,6 +182,34 @@
 
         #endregion
 
+        private static double CalcError(BasicNetwork method, MatrixMLDataSet data)
+        {
+            int correct = 0;
+            int total = 0;
+            foreach (var pair in data)
+            {
+                var computed = method.Classify(pair.Input);
+                for (int i = 0; i < pair.Ideal.Count; i++)
+                {
+                    if (computed == i && pair.Ideal[i] < 0.99999)
+                    {
+                        break;
+                    }
+
+                    if (pair.Ideal[i] > 0.99999)
+                    {
+                        break;
+                    }
+
+                    correct++;
+                }
+
+                total++;
+            }
+
+            return (total - correct) / (double)total;
+        }
+
         #region Methods
 
         private static BasicNetwork CreateNetwork(Random rng)
@@ -186,7 +218,7 @@
 
             // TODO: Wszystkie parametry konfigurowalne dla każdego layera (poza pierwszym bo input?)
             network.AddLayer(new BasicLayer(new ActivationLinear(), true, 2));
-            //network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
+            network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
             network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
             network.Structure.FinalizeStructure();
 
