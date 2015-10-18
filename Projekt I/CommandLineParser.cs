@@ -11,6 +11,7 @@ namespace sieci_neuronowe
         public const string DefaultTrainFilePath = @".\data\classification\data.train.csv";
         public const string DefaultTestingFilePath = @".\data\classification\data.test.csv";
         public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\simple_neural_network_01.txt";
+        public const int DefaultNumberOfIterations = 1000;
         public static readonly string[] DefaultArgs =
         {
             "-" + ShortClassificationOption,
@@ -27,11 +28,13 @@ namespace sieci_neuronowe
                              ShortRegressionOption = "r",
                              ShortTestingPathOption = "t",
                              ShortLogPathOption = "l",
+                             ShortIterationsOption = "i",
                              LongHelpOption = "help",
                              LongClassificationOption = "classification",
                              LongRegressionOption = "regression",
                              LongTestingPathOption = "testing",
-                             LongLogPathOption = "log";
+                             LongLogPathOption = "log",
+                             LongIterationsOption = "iterations";
         private const int NumberOfExpectedUnrecognizedOptions = 2;
         public ProblemType Problem { get; private set; }
         public bool InputValid { get; private set; }
@@ -40,6 +43,7 @@ namespace sieci_neuronowe
         public string TestingSetFilePath { get; private set; }
         public string LogFilePath { get; private set; }
         public string NeuralNetworkDefinitionFilePath { get; private set; }
+        public int NumberOfIterations { get; private set; }
         public string MessageForUser { get; private set; }
 
         public CommandLineParser(IEnumerable<string> args)
@@ -51,22 +55,23 @@ namespace sieci_neuronowe
             TestingSetFilePath = string.Empty;
             LogFilePath = string.Empty;
             NeuralNetworkDefinitionFilePath = string.Empty;
+            NumberOfIterations = DefaultNumberOfIterations;
             MessageForUser = string.Empty;
             Parse(args);
         }
 
         public void PrintUsage(string[] args)
         {
-            const string a = "LEARNING_SET_PATH",
-                         b = "NEURAL_NETWORK_DEFINITION_PATH";
+            const string A = "LEARNING_SET_PATH",
+                         B = "NEURAL_NETWORK_DEFINITION_PATH";
             Console.WriteLine("USAGE:");
             Console.WriteLine();
-            Console.WriteLine("  {0} [OPTIONS] {1} {2}", AppDomain.CurrentDomain.FriendlyName, a, b);
+            Console.WriteLine("  {0} [OPTIONS] {1} {2}", AppDomain.CurrentDomain.FriendlyName, A, B);
             Console.WriteLine();
             Console.WriteLine("WHERE:");
             Console.WriteLine();
-            Console.WriteLine("    {0} is path to CSV file with learning set.", a);
-            Console.WriteLine("    {0} is path to text file with defined neural network.", b);
+            Console.WriteLine("    {0} is path to CSV file with learning set.", A);
+            Console.WriteLine("    {0} is path to text file with defined neural network.", B);
             Console.WriteLine();
             Console.WriteLine("OPTIONS:");
             Console.WriteLine();
@@ -76,6 +81,9 @@ namespace sieci_neuronowe
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} LOG_FILE_PATH", ShortLogPathOption, LongLogPathOption);
             Console.WriteLine("          Path to log text file which will be created.");
+            Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1} ITERATIONS", ShortIterationsOption, LongIterationsOption);
+            Console.WriteLine("          Number of iterations for learning process.");
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1}", ShortHelpOption, LongHelpOption);
             Console.WriteLine("          Print this usage and exit.");
@@ -99,6 +107,7 @@ namespace sieci_neuronowe
                 { ShortClassificationOption + "|" + LongClassificationOption, "Choose classification problem.", v => { if (v != null) classification = true; } },
                 { ShortRegressionOption + "|" + LongRegressionOption, "Choose regression problem.", v => { if (v != null) regression = true; } },
                 { ShortTestingPathOption + "|" + LongTestingPathOption + "=", "Path to testing CSV.", v => TestingSetFilePath = v },
+                { ShortIterationsOption + "|" + LongIterationsOption + "=", "Number of iterations.", (int v) => NumberOfIterations = v },
                 { ShortLogPathOption + "|" + LongLogPathOption + "=", "Path to log text file for debugging purposes.", v => LogFilePath = v }
             };
 
@@ -106,12 +115,16 @@ namespace sieci_neuronowe
             {
                 unrecognizedOptions = p.Parse(args); // unrecognized[0] is file path to learning set
             }
-            catch (OptionException)
+            catch (OptionException e)
             {
-                MessageForUser = "Unrecognized arguments.";
+                MessageForUser = e.Message;
             }
 
-            if (unrecognizedOptions.Count < NumberOfExpectedUnrecognizedOptions)
+            if (NumberOfIterations < 0)
+            {
+                MessageForUser = "Number of iterations must be positive number";
+            }
+            else if (unrecognizedOptions.Count < NumberOfExpectedUnrecognizedOptions)
             {
                 MessageForUser = "Learning set file path or neural network definition file was not specified.";
             }
@@ -156,6 +169,12 @@ namespace sieci_neuronowe
             }
 
             InputValid = MessageForUser == string.Empty;
+            if (!InputValid)
+            {
+                MessageForUser = string.Format("{0}{1}Try '{2} --{3}' for more help.",
+                                                MessageForUser, Environment.NewLine,
+                                                AppDomain.CurrentDomain.FriendlyName, LongHelpOption);
+            }
         }
     }
 }
