@@ -52,8 +52,7 @@
                 for (int j = 0; j < resolutionY; j++)
                 {
                     double y = (j * stepY) + CoordOffset;
-                    IMLData output =
-                        new BasicMLData(new[] { x, y, testFunction.Compute(new BasicMLData(new[] { x, y }))[0] });
+                    IMLData output = testFunction.Compute(new BasicMLData(new[] { x, y }));
                     string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                     int result = int.Parse(stringChosen);
                     int colorRGB = RGBFromInt(result, points.Any());
@@ -63,19 +62,15 @@
 
             foreach (var pt in points)
             {
-                double x = pt.X;
-                double y = pt.Y;
-                int colorRGB;
-                if (pt.Correct >= 0)
+                if (pt.Correct < 0)
                 {
-                    colorRGB = RGBFromInt(pt.Correct, false);
-                }
-                else
-                {
-                    // Czarny punkt
-                    colorRGB = 0x0ff << 24;
+                    continue;
                 }
 
+                double x = pt.X;
+                double y = pt.Y;
+                int colorRGB= RGBFromInt(pt.Correct, false);
+                
                 var i = (int)((x - CoordOffset) / stepX);
                 var j = (int)((y - CoordOffset) / stepY);
                 if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)

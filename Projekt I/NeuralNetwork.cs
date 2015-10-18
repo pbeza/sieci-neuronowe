@@ -107,7 +107,7 @@
             // Hold back some data for a final validation.
             // Shuffle the data into a random ordering.
             // Use a seed of 1001 so that we always use the same holdback and will get more consistent results.
-            trainingModel.HoldBackValidation(0.1, true, RandomnessSeed);
+            trainingModel.HoldBackValidation(0.3, true, RandomnessSeed);
 
             // Choose whatever is the default training type for this model.
             trainingModel.SelectTrainingType(dataSet);
@@ -117,10 +117,9 @@
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
 
-            // TODO: Ma być online, tzn. training dataset pusty (niemożliwe z tą implementacją?)
-            var backpropagation = new Backpropagation(network, dataSet, 0.00001, 0.1);
+            var backpropagation = new Backpropagation(network, dataSet, 0.00003, 0.001);
             backpropagation.BatchSize = 1; // Online
-            const int IterationCount = 3000;
+            const int IterationCount = 2000;
             for (int i = 0; i < IterationCount; i++)
             {
                 backpropagation.Iteration();
@@ -162,6 +161,8 @@
             writetext.WriteLine(
                 "Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
 
+            writetext.WriteLine( "Neuron weight dump: " + network.DumpWeights() );
+
             var allPoints = new List<NeuroPoint>();
 
             TestData(this.learningPath, normHelper, usedMethod, allPoints);
@@ -185,7 +186,7 @@
 
             // TODO: Wszystkie parametry konfigurowalne dla każdego layera (poza pierwszym bo input?)
             network.AddLayer(new BasicLayer(new ActivationLinear(), true, 2));
-            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
+            //network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
             network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
             network.Structure.FinalizeStructure();
 
@@ -196,7 +197,7 @@
                 {
                     for (int k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
                     {
-                        network.SetWeight(i, j, k, (rng.NextDouble() - 0.5) * 0.1);
+                        network.SetWeight(i, j, k, (rng.NextDouble() - 0.5) * 2.0);
                     }
                 }
             }
@@ -277,7 +278,7 @@
 
                 var data = new BasicMLData(new[] { x, y });
                 helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, data.Data, false);
-                IMLData output = new BasicMLData(new[] { x, y, usedMethod.Compute(data)[0] });
+                IMLData output = usedMethod.Compute(data);
                 string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 int computed = int.Parse(stringChosen);
                 results.Add(new NeuroPoint(x, y, computed, correct));
