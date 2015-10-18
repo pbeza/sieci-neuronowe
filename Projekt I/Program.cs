@@ -8,11 +8,9 @@ namespace sieci_neuronowe
 {
     public static class Program
     {
-        private const bool IfDefaultArgs = true;
-
         public static void Run(string[] args)
         {
-            var parser = new CommandLineParser(IfDefaultArgs ? CommandLineParser.DefaultArgs : args);
+            var parser = new CommandLineParser(args.Length == 0 ? CommandLineParser.DefaultArgs : args);
             if (parser.InputValid)
             {
                 if (!parser.ShowHelpRequested)
@@ -29,15 +27,11 @@ namespace sieci_neuronowe
             else
             {
                 Console.WriteLine(parser.MessageForUser);
-                parser.PrintUsage(args);
             }
         }
 
         public static void Main(string[] args)
         {
-            Console.WriteLine("> Starting application.");
-            Console.WriteLine();
-
             try
             {
                 Run(args);
@@ -49,9 +43,6 @@ namespace sieci_neuronowe
                 Console.WriteLine("Details:");
                 Console.WriteLine(e.Message);
             }
-
-            Console.WriteLine();
-            Console.WriteLine("> Exiting application. Bye!");
         }
     }
 }
