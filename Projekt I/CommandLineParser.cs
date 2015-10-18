@@ -5,6 +5,8 @@ using System.IO;
 
 namespace sieci_neuronowe
 {
+    using System.Linq;
+
     public class CommandLineParser
     {
         public const string DefaultLogFilePath = @".\out.txt";
@@ -63,15 +65,16 @@ namespace sieci_neuronowe
         public void PrintUsage(string[] args)
         {
             const string A = "LEARNING_SET_PATH",
-                         B = "NEURAL_NETWORK_DEFINITION_PATH";
+                         B = "NETWORK_DEFINITION_PATH";
             Console.WriteLine("USAGE:");
             Console.WriteLine();
             Console.WriteLine("  {0} [OPTIONS] {1} {2}", AppDomain.CurrentDomain.FriendlyName, A, B);
             Console.WriteLine();
             Console.WriteLine("WHERE:");
             Console.WriteLine();
-            Console.WriteLine("    {0} is path to CSV file with learning set.", A);
-            Console.WriteLine("    {0} is path to text file with defined neural network.", B);
+            Console.WriteLine("    {0,-24} is path to CSV file with learning set.", A);
+            Console.WriteLine();
+            Console.WriteLine("    {0,-24} is path to text file with defined neural network.", B);
             Console.WriteLine();
             Console.WriteLine("OPTIONS:");
             Console.WriteLine();
@@ -120,17 +123,23 @@ namespace sieci_neuronowe
                 MessageForUser = e.Message;
             }
 
-            if (NumberOfIterations < 0)
+            if (ShowHelpRequested)
             {
-                MessageForUser = "Number of iterations must be positive number";
+                SetParserState();
+                return;
             }
-            else if (unrecognizedOptions.Count < NumberOfExpectedUnrecognizedOptions)
+
+            if (unrecognizedOptions.Count < NumberOfExpectedUnrecognizedOptions)
             {
                 MessageForUser = "Learning set file path or neural network definition file was not specified.";
             }
             else if (unrecognizedOptions.Count > NumberOfExpectedUnrecognizedOptions)
             {
                 MessageForUser = "Too many arguments.";
+            }
+            else if (NumberOfIterations < 0)
+            {
+                MessageForUser = "Number of iterations must be positive number";
             }
             else if (!File.Exists(LearningSetFilePath = unrecognizedOptions[0]))
             {
@@ -141,7 +150,13 @@ namespace sieci_neuronowe
                 MessageForUser = "Specified file with neural network definition doesn't exist.";
             }
 
-            if (TestingSetFilePath == null)
+            if (MessageForUser != string.Empty)
+            {
+                SetParserState();
+                return;
+            }
+
+            if (string.IsNullOrEmpty(TestingSetFilePath))
             {
                 TestingSetFilePath = LearningSetFilePath;
             }
@@ -150,7 +165,13 @@ namespace sieci_neuronowe
                 MessageForUser = "Given testing file doesn't exist.";
             }
 
-            if (LogFilePath == null)
+            if (MessageForUser != string.Empty)
+            {
+                SetParserState();
+                return;
+            }
+
+            if (string.IsNullOrEmpty(LogFilePath))
             {
                 LogFilePath = DefaultLogFilePath;
             }
@@ -168,12 +189,15 @@ namespace sieci_neuronowe
                 MessageForUser = "Neither classification nor regression flag was set.";
             }
 
+            SetParserState();
+        }
+
+        private void SetParserState()
+        {
             InputValid = MessageForUser == string.Empty;
             if (!InputValid)
             {
-                MessageForUser = string.Format("{0}{1}Try '{2} --{3}' for more help.",
-                                                MessageForUser, Environment.NewLine,
-                                                AppDomain.CurrentDomain.FriendlyName, LongHelpOption);
+                MessageForUser = string.Format("Error. {0}\n\nTry '.\\{1} --{2}' for more help.", MessageForUser, AppDomain.CurrentDomain.FriendlyName, LongHelpOption);
             }
         }
     }
