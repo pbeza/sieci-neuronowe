@@ -5,11 +5,12 @@ using System.IO;
 
 namespace sieci_neuronowe
 {
-    public class Parser
+    public class CommandLineParser
     {
         public const string DefaultLogFilePath = @".\out.txt";
         public const string DefaultTrainFilePath = @".\data\classification\data.train.csv";
         public const string DefaultTestingFilePath = @".\data\classification\data.test.csv";
+        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\simple_neural_network_01.txt";
         public static readonly string[] DefaultArgs =
         {
             "-" + ShortClassificationOption,
@@ -17,7 +18,8 @@ namespace sieci_neuronowe
             DefaultLogFilePath,
             "-" + ShortTestingPathOption,
             DefaultTestingFilePath,
-            DefaultTrainFilePath
+            DefaultTrainFilePath,
+            DefaultNeuralNetworkDefinitionFilePath
         };
         public enum ProblemType { Classification, Regression, Unspecified };
         public const string ShortHelpOption = "h",
@@ -30,16 +32,17 @@ namespace sieci_neuronowe
                              LongRegressionOption = "regression",
                              LongTestingPathOption = "testing",
                              LongLogPathOption = "log";
-        private const int NumberOfExpectedUnrecognizedOptions = 1;
+        private const int NumberOfExpectedUnrecognizedOptions = 2;
         public ProblemType Problem { get; private set; }
         public bool InputValid { get; private set; }
         public bool ShowHelpRequested { get; private set; }
         public string LearningSetFilePath { get; private set; }
         public string TestingSetFilePath { get; private set; }
         public string LogFilePath { get; private set; }
+        public string NeuralNetworkDefinitionFilePath { get; private set; }
         public string MessageForUser { get; private set; }
 
-        public Parser(IEnumerable<string> args)
+        public CommandLineParser(IEnumerable<string> args)
         {
             Problem = ProblemType.Unspecified;
             InputValid = false;
@@ -47,15 +50,23 @@ namespace sieci_neuronowe
             LearningSetFilePath = string.Empty;
             TestingSetFilePath = string.Empty;
             LogFilePath = string.Empty;
+            NeuralNetworkDefinitionFilePath = string.Empty;
             MessageForUser = string.Empty;
             Parse(args);
         }
 
         public void PrintUsage(string[] args)
         {
+            const string a = "LEARNING_SET_PATH",
+                         b = "NEURAL_NETWORK_DEFINITION_PATH";
             Console.WriteLine("USAGE:");
             Console.WriteLine();
-            Console.WriteLine("  {0} [OPTIONS] LEARNING_SET_PATH", AppDomain.CurrentDomain.FriendlyName);
+            Console.WriteLine("  {0} [OPTIONS] {1} {2}", AppDomain.CurrentDomain.FriendlyName, a, b);
+            Console.WriteLine();
+            Console.WriteLine("WHERE:");
+            Console.WriteLine();
+            Console.WriteLine("    {0} is path to CSV file with learning set.", a);
+            Console.WriteLine("    {0} is path to text file with defined neural network.", b);
             Console.WriteLine();
             Console.WriteLine("OPTIONS:");
             Console.WriteLine();
@@ -65,6 +76,9 @@ namespace sieci_neuronowe
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} LOG_FILE_PATH", ShortLogPathOption, LongLogPathOption);
             Console.WriteLine("          Path to log text file which will be created.");
+            Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1}", ShortHelpOption, LongHelpOption);
+            Console.WriteLine("          Print this usage and exit.");
             Console.WriteLine();
             Console.WriteLine("  Exactly one of the following options is required:");
             Console.WriteLine();
@@ -94,12 +108,12 @@ namespace sieci_neuronowe
             }
             catch (OptionException)
             {
-                MessageForUser = "Unexpected arguments.";
+                MessageForUser = "Unrecognized arguments.";
             }
 
             if (unrecognizedOptions.Count < NumberOfExpectedUnrecognizedOptions)
             {
-                MessageForUser = "Learning set file path was not specified.";
+                MessageForUser = "Learning set file path or neural network definition file was not specified.";
             }
             else if (unrecognizedOptions.Count > NumberOfExpectedUnrecognizedOptions)
             {
@@ -107,7 +121,11 @@ namespace sieci_neuronowe
             }
             else if (!File.Exists(LearningSetFilePath = unrecognizedOptions[0]))
             {
-                MessageForUser = "Specified learning set file doesn't exist.";
+                MessageForUser = "Specified file with learning set doesn't exist.";
+            }
+            else if (!File.Exists(NeuralNetworkDefinitionFilePath = unrecognizedOptions[1]))
+            {
+                MessageForUser = "Specified file with neural network definition doesn't exist.";
             }
 
             if (TestingSetFilePath == null)

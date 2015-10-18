@@ -1,25 +1,17 @@
-﻿using System.Linq;
+﻿using Encog.ML;
 using Encog.ML.Data;
+using Encog.ML.Data.Basic;
+using Encog.ML.Data.Versatile;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace sieci_neuronowe
 {
-    #region
-
-    using System.Collections.Generic;
-    using System.Drawing;
-    using System.Drawing.Imaging;
-    using System.Runtime.InteropServices;
-
-    using Encog.ML;
-    using Encog.ML.Data.Basic;
-    using Encog.ML.Data.Versatile;
-
-    #endregion
-
     public static class PictureGenerator
     {
-        #region Public Methods and Operators
-
         /// <summary>
         /// Generuje obrazek przedstawiający jak sieć dzieli przestrzeń.
         /// Testuje tylko punkty z zakresu 0.0 - 1.0.
@@ -49,12 +41,11 @@ namespace sieci_neuronowe
             var stepY = resolutionMult / resolutionY;
             for (var i = 0; i < resolutionX; i++)
             {
-                var x = (i * stepX) + coordOffset;
+                var x = i * stepX + coordOffset;
                 for (var j = 0; j < resolutionY; j++)
                 {
-                    var y = (j * stepY) + coordOffset;
-                    IMLData output =
-                        new BasicMLData(new[] { x, y, testFunction.Compute(new BasicMLData(new[] { x, y }))[0] });
+                    var y = j * stepY + coordOffset;
+                    IMLData output = new BasicMLData(new[] { x, y, testFunction.Compute(new BasicMLData(new[] { x, y }))[0] });
                     var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                     var result = int.Parse(stringChosen);
                     var colorRGB = RGBFromInt(result, points.Any());
@@ -89,10 +80,6 @@ namespace sieci_neuronowe
             bmp.Save(path);
         }
 
-        #endregion
-
-        #region Methods
-
         private static int RGBFromInt(int i, bool lowIntensity)
         {
             var red = (i % 4) == 1;
@@ -104,7 +91,5 @@ namespace sieci_neuronowe
             var b = blue ? val : 0;
             return (0x0ff << 24) | ((r & 0x0ff) << 16) | ((g & 0x0ff) << 8) | ((b & 0x0ff) << 0);
         }
-
-        #endregion
     }
 }

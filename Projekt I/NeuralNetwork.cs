@@ -1,94 +1,48 @@
-﻿using Encog.ML.Data;
+﻿using Encog;
+using Encog.Engine.Network.Activation;
+using Encog.ML;
+using Encog.ML.Data;
+using Encog.ML.Data.Basic;
+using Encog.ML.Data.Versatile;
+using Encog.ML.Data.Versatile.Columns;
+using Encog.ML.Data.Versatile.Sources;
+using Encog.ML.Factory;
+using Encog.ML.Model;
+using Encog.Neural.Networks;
+using Encog.Neural.Networks.Layers;
+using Encog.Neural.Networks.Training.Propagation.Back;
+using Encog.Util.CSV;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace sieci_neuronowe
 {
-    #region Usings
-
-    using System;
-    using Encog;
-    using Encog.Engine.Network.Activation;
-    using Encog.ML;
-    using Encog.ML.Data.Basic;
-    using Encog.ML.Data.Versatile;
-    using Encog.ML.Data.Versatile.Columns;
-    using Encog.ML.Data.Versatile.Sources;
-    using Encog.ML.Factory;
-    using Encog.ML.Model;
-    using Encog.Neural.Networks;
-    using Encog.Neural.Networks.Layers;
-    using Encog.Neural.Networks.Training.Propagation.Back;
-    using Encog.Util.CSV;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Text;
-
-    #endregion
-
-    public struct NeuroPoint
-    {
-        #region Fields
-
-        public int Category;
-        public int Correct;
-        public double X;
-        public double Y;
-
-        #endregion
-
-        #region Constructors and Destructors
-
-        public NeuroPoint(double x, double y, int category, int correct)
-        {
-            X = x;
-            Y = y;
-            Category = category;
-            Correct = correct;
-        }
-
-        #endregion
-    }
-
     public class NeuralNetwork
     {
-        #region Constants
-
         private const string FirstColumn = "x";
-
         private const string SecondColumn = "y";
-
         private const string PredictColumn = "cls";
 
-        #endregion
-
-        #region Fields
-
-        private readonly string _trainingPath;
-
+        private readonly string _learningPath;
         private readonly string _testingPath;
-
         private readonly string _logOutputPath;
-
         private readonly Random _rng;
+        private const int RandomnessSeed = 1001;
+        private const string GeneratedImagePath = @".\area_classification.bmp";
 
-        #endregion
-
-        #region Constructors and Destructors
-
-        public NeuralNetwork(Parser parser)
+        public NeuralNetwork(CommandLineParser parser)
             : this(parser.LearningSetFilePath, parser.TestingSetFilePath, parser.LogFilePath)
         { }
 
-        public NeuralNetwork(string trainingPath, string testingPath, string logOutputPath)
+        public NeuralNetwork(string learningPath, string testingPath, string logOutputPath)
         {
-            _testingPath = testingPath ?? trainingPath;
-            _trainingPath = trainingPath;
+            _testingPath = testingPath ?? learningPath;
+            _learningPath = learningPath;
             _logOutputPath = logOutputPath;
-            _rng = new Random(1001);
+            _rng = new Random(RandomnessSeed);
         }
-
-        #endregion
-
-        #region Public Methods and Operators
 
         public void Run()
         {
@@ -97,9 +51,10 @@ namespace sieci_neuronowe
             // training set.  You do not need to retrain, simply use the NormalizationHelper
             // class.  After you train, you can save the NormalizationHelper to later
             // normalize and denormalize your data.
-            var csvTrainingDataSource = new CSVDataSource(_trainingPath, true, CSVFormat.DecimalPoint);
-            var dataSet = PrepareDataSet(csvTrainingDataSource);
-            csvTrainingDataSource.Close();
+
+            var csvLearningDataSource = new CSVDataSource(_learningPath, true, CSVFormat.DecimalPoint);
+            var dataSet = PrepareDataSet(csvLearningDataSource);
+            csvLearningDataSource.Close();
 
             // Create feedforward neural network as the model type. MLMethodFactory.TYPE_FEEDFORWARD.
             // You could also other model types, such as:
@@ -107,24 +62,29 @@ namespace sieci_neuronowe
             // MLMethodFactory.TYPE_RBFNETWORK: RBF Neural Network
             // MLMethodFactor.TYPE_NEAT: NEAT Neural Network
             // MLMethodFactor.TYPE_PNN: Probabilistic Neural Network
+
             var trainingModel = new EncogModel(dataSet);
             trainingModel.SelectMethod(dataSet, MLMethodFactory.TypeFeedforward);
 
             // Send any output to the console.
+
             using (var writetext = new StreamWriter(_logOutputPath))
             {
                 trainingModel.Report = new StreamStatusReportable(writetext);
 
                 // Now normalize the data.  Encog will automatically determine the correct normalization
                 // type based on the model you chose in the last step.
+
                 dataSet.Normalize();
 
                 // Hold back some data for a final validation.
                 // Shuffle the data into a random ordering.
                 // Use a seed of 1001 so that we always use the same holdback and will get more consistent results.
-                trainingModel.HoldBackValidation(0.1, true, 1001);
+
+                trainingModel.HoldBackValidation(0.1, true, RandomnessSeed);
 
                 // Choose whatever is the default training type for this model.
+
                 trainingModel.SelectTrainingType(dataSet);
 
                 var network = CreateNetwork(_rng);
@@ -132,15 +92,13 @@ namespace sieci_neuronowe
                 // TODO: Ma być online, tzn. training dataset pusty (niemożliwe z tą implementacją?)
                 var backpropagation = new Backpropagation(network, dataSet, 0.00001, 0.01);
                 const int iterationCount = 10000;
-                for (int i = 0; i < iterationCount; i++)
+                for (var i = 0; i < iterationCount; i++)
                 {
                     backpropagation.Iteration();
-                    if (i % (iterationCount / 10) == 0)
-                    {
-                        double err = backpropagation.Error;
-                        writetext.WriteLine(@"Backpropagation error: " + err);
-                        Console.WriteLine(@"Iteration progress: " + i + "/" + iterationCount + ", error: " + err);
-                    }
+                    if (i % (iterationCount / 10) != 0) continue;
+                    var err = backpropagation.Error;
+                    writetext.WriteLine("Backpropagation error: " + err);
+                    Console.WriteLine("Iteration progress: " + i + "/" + iterationCount + ", error: " + err);
                 }
 
                 PrintWeights(network, writetext);
@@ -150,38 +108,33 @@ namespace sieci_neuronowe
                 // var usedMethod = (IMLRegression)trainingModel.Crossvalidate(5, true);
 
                 // Display the training and validation errors.
-                writetext.WriteLine(
-                    @"Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
-                writetext.WriteLine(
-                    @"Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
+
+                writetext.WriteLine("Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
+                writetext.WriteLine("Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
 
                 // Display our normalization parameters.
+
                 var normHelper = dataSet.NormHelper;
                 writetext.WriteLine(normHelper);
 
                 // Display the final model.
-                writetext.WriteLine(@"Final model: " + usedMethod);
+
+                writetext.WriteLine("Final model: " + usedMethod);
 
                 var allPoints = new List<NeuroPoint>();
 
-                TestData(_trainingPath, normHelper, usedMethod, allPoints);
+                TestData(_learningPath, normHelper, usedMethod, allPoints);
                 TestData(_testingPath, normHelper, usedMethod, allPoints);
                 PrintPoints(allPoints, writetext);
 
-                writetext.WriteLine(
-                    @"Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
-                writetext.WriteLine(
-                    @"Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
+                writetext.WriteLine("Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
+                writetext.WriteLine("Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
 
-                PictureGenerator.DrawArea("area_classification.bmp", usedMethod, allPoints, normHelper, 1024, 1024);
+                PictureGenerator.DrawArea(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
             }
 
             EncogFramework.Instance.Shutdown();
         }
-
-        #endregion
-
-        #region Methods
 
         private static BasicNetwork CreateNetwork(Random rng)
         {
@@ -251,9 +204,9 @@ namespace sieci_neuronowe
             for (int i = 0; i < network.LayerCount - 1; i++)
             {
                 writer.WriteLine("Layer {0}, neurons number {1}", i, network.GetLayerNeuronCount(i));
-                for (int j = 0; j < network.GetLayerNeuronCount(i); j++)
+                for (var j = 0; j < network.GetLayerNeuronCount(i); j++)
                 {
-                    for (int k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
+                    for (var k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
                     {
                         writer.WriteLine("{0}->{1}: {2:F3}", j, k, network.GetWeight(i, j, k));
                     }
@@ -289,7 +242,5 @@ namespace sieci_neuronowe
 
             csv.Close();
         }
-
-        #endregion
     }
 }
