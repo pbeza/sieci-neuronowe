@@ -31,6 +31,10 @@
         private const string FirstColumn = "x";
 
         private const string GeneratedImagePath = @".\area_classification.bmp";
+        
+        private const string TrainingErrorDataPath = @".\training_error_data.txt";
+
+        private const string VerificationErrorDataPath = @".\verification_error_data.txt";
 
         private const string PredictColumn = "cls";
 
@@ -92,72 +96,81 @@
             trainingModel.SelectMethod(dataSet, MLMethodFactory.TypeFeedforward);
 
             // Send any output to the console.
-            using (var writetext = new StreamWriter(this.logOutputPath))
+            var writetext = new StreamWriter(this.logOutputPath);
+
+            trainingModel.Report = new StreamStatusReportable(writetext);
+
+            // Now normalize the data.  Encog will automatically determine the correct normalization
+            // type based on the model you chose in the last step.
+            dataSet.Normalize();
+
+            // Hold back some data for a final validation.
+            // Shuffle the data into a random ordering.
+            // Use a seed of 1001 so that we always use the same holdback and will get more consistent results.
+            trainingModel.HoldBackValidation(0.1, true, RandomnessSeed);
+
+            // Choose whatever is the default training type for this model.
+            trainingModel.SelectTrainingType(dataSet);
+
+            BasicNetwork network = CreateNetwork(this.rng);
+
+            var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
+            var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
+
+            // TODO: Ma być online, tzn. training dataset pusty (niemożliwe z tą implementacją?)
+            var backpropagation = new Backpropagation(network, dataSet, 0.00001, 0.1);
+            backpropagation.BatchSize = 1; // Online
+            const int IterationCount = 3000;
+            for (int i = 0; i < IterationCount; i++)
             {
-                trainingModel.Report = new StreamStatusReportable(writetext);
-
-                // Now normalize the data.  Encog will automatically determine the correct normalization
-                // type based on the model you chose in the last step.
-                dataSet.Normalize();
-
-                // Hold back some data for a final validation.
-                // Shuffle the data into a random ordering.
-                // Use a seed of 1001 so that we always use the same holdback and will get more consistent results.
-                trainingModel.HoldBackValidation(0.1, true, RandomnessSeed);
-
-                // Choose whatever is the default training type for this model.
-                trainingModel.SelectTrainingType(dataSet);
-
-                BasicNetwork network = CreateNetwork(this.rng);
-
-                // TODO: Ma być online, tzn. training dataset pusty (niemożliwe z tą implementacją?)
-                var backpropagation = new Backpropagation(network, dataSet, 0.00001, 0.01);
-                const int IterationCount = 100;
-                for (int i = 0; i < IterationCount; i++)
+                backpropagation.Iteration();
+                /*
+                if (i % 100 == 0)
                 {
-                    backpropagation.Iteration();
-                    if (i % (IterationCount / 10) != 0)
-                    {
-                        continue;
-                    }
-
-                    double err = backpropagation.Error;
-                    writetext.WriteLine("Backpropagation error: " + err);
-                    Console.WriteLine("Iteration progress: " + i + "/" + IterationCount + ", error: " + err);
+                    trainingErrorWriter.WriteLine(trainingModel.CalculateError(backpropagation.Network, trainingModel.TrainingDataset));
+                    verificationErrorWriter.WriteLine(trainingModel.CalculateError(backpropagation.Network, trainingModel.ValidationDataset));
+                }
+                 */
+                if (i % (IterationCount / 10) != 0)
+                {
+                    continue;
                 }
 
-                PrintWeights(network, writetext);
-                var usedMethod = (IMLRegression)backpropagation.Method;
-
-                // Use a 5-fold cross-validated train.  Return the best method found.
-                // var usedMethod = (IMLRegression)trainingModel.Crossvalidate(5, true);
-
-                // Display the training and validation errors.
-                writetext.WriteLine(
-                    "Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
-                writetext.WriteLine(
-                    "Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
-
-                // Display our normalization parameters.
-                NormalizationHelper normHelper = dataSet.NormHelper;
-                writetext.WriteLine(normHelper);
-
-                // Display the final model.
-                writetext.WriteLine("Final model: " + usedMethod);
-
-                var allPoints = new List<NeuroPoint>();
-
-                TestData(this.learningPath, normHelper, usedMethod, allPoints);
-                TestData(this.testingPath, normHelper, usedMethod, allPoints);
-                PrintPoints(allPoints, writetext);
-
-                writetext.WriteLine(
-                    "Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
-                writetext.WriteLine(
-                    "Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
-
-                PictureGenerator.DrawArea(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
+                double err = backpropagation.Error;
+                writetext.WriteLine("Backpropagation error: " + err);
+                Console.WriteLine("Iteration progress: " + i + "/" + IterationCount + ", error: " + err);
             }
+
+            trainingErrorWriter.Close();
+            verificationErrorWriter.Close();
+
+            PrintWeights(network, writetext);
+            var usedMethod = (BasicNetwork)backpropagation.Method;
+
+            // Use a 5-fold cross-validated train.  Return the best method found.
+            // var usedMethod = (IMLRegression)trainingModel.Crossvalidate(5, true);
+
+            // Display our normalization parameters.
+            NormalizationHelper normHelper = dataSet.NormHelper;
+            writetext.WriteLine(normHelper);
+
+            // Display the final model.
+            writetext.WriteLine("Final model: " + usedMethod);
+
+            writetext.WriteLine(
+                "Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
+            writetext.WriteLine(
+                "Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
+
+            var allPoints = new List<NeuroPoint>();
+
+            TestData(this.learningPath, normHelper, usedMethod, allPoints);
+            TestData(this.testingPath, normHelper, usedMethod, allPoints);
+            PrintPoints(allPoints, writetext);
+
+            PictureGenerator.DrawArea(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
+
+            writetext.Close();
 
             EncogFramework.Instance.Shutdown();
         }
@@ -173,7 +186,7 @@
             // TODO: Wszystkie parametry konfigurowalne dla każdego layera (poza pierwszym bo input?)
             network.AddLayer(new BasicLayer(new ActivationLinear(), true, 2));
             network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
-            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 1));
+            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
             network.Structure.FinalizeStructure();
 
             // Zrób pełną sieć
