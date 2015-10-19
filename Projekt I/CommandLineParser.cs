@@ -5,42 +5,40 @@ using System.IO;
 
 namespace sieci_neuronowe
 {
-    using System.Linq;
-
     public class CommandLineParser
     {
-        public const string RegressionTrainFilePath = @".\data\regression\data.xsq.train.csv";
-        public const string RegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
-        public const string ClassificationTrainFilePath = @".\data\classification\data.train.csv";
-        public const string ClassificationTestingFilePath = @".\data\classification\data.test.csv";
         public const string DefaultLogFilePath = @".\out.txt";
-        public const string DefaultTrainFilePath = RegressionTrainFilePath;
-        public const string DefaultTestingFilePath = RegressionTestingFilePath;
+        public const string DefaultLearningFilePath = @".\data\classification\data.train.csv";
+        public const string DefaultTestingFilePath = @".\data\classification\data.test.csv";
+        public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
+        public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
         public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\simple_neural_network_01.txt";
         public const int DefaultNumberOfIterations = 1000;
+        public const double DefaultInertiaValue = 0.01;
+        public const double MinAllowedInertiaValue = 0.0;
+        public const double MaxAllowedInertiaValue = 1.0;
         public static readonly string[] DefaultArgs =
         {
-            "-" + ShortRegressionOption,
-            "-" + ShortLogPathOption,
-            DefaultLogFilePath,
-            "-" + ShortTestingPathOption,
-            DefaultTestingFilePath,
-            DefaultTrainFilePath,
+            "-" + ShortClassificationOption,
+            "-" + ShortTestingPathOption, DefaultTestingFilePath,
+            DefaultLearningFilePath,
             DefaultNeuralNetworkDefinitionFilePath
         };
         public enum ProblemType { Classification, Regression, Unspecified };
         public const string ShortHelpOption = "h",
-                             ShortClassificationOption = "c",
-                             ShortRegressionOption = "r",
-                             ShortTestingPathOption = "t",
-                             ShortLogPathOption = "l",
-                             ShortIterationsOption = "i",
-                             LongHelpOption = "help",
-                             LongClassificationOption = "classification",
-                             LongRegressionOption = "regression",
-                             LongTestingPathOption = "testing",
-                             LongLogPathOption = "log",
-                             LongIterationsOption = "iterations";
+                            ShortClassificationOption = "c",
+                            ShortRegressionOption = "r",
+                            ShortTestingPathOption = "t",
+                            ShortLogPathOption = "l",
+                            ShortIterationsOption = "n",
+                            ShortInertiaValueOption = "i",
+                            LongHelpOption = "help",
+                            LongClassificationOption = "classification",
+                            LongRegressionOption = "regression",
+                            LongTestingPathOption = "testing",
+                            LongLogPathOption = "log",
+                            LongIterationsOption = "iterations",
+                            LongInertiaValueOption = "inertia";
         private const int NumberOfExpectedUnrecognizedOptions = 2;
         public ProblemType Problem { get; private set; }
         public bool InputValid { get; private set; }
@@ -50,6 +48,7 @@ namespace sieci_neuronowe
         public string LogFilePath { get; private set; }
         public string NeuralNetworkDefinitionFilePath { get; private set; }
         public int NumberOfIterations { get; private set; }
+        public double InertiaValue { get; private set; }
         public string MessageForUser { get; private set; }
 
         public CommandLineParser(IEnumerable<string> args)
@@ -62,46 +61,57 @@ namespace sieci_neuronowe
             LogFilePath = string.Empty;
             NeuralNetworkDefinitionFilePath = string.Empty;
             NumberOfIterations = DefaultNumberOfIterations;
+            InertiaValue = DefaultInertiaValue;
             MessageForUser = string.Empty;
             Parse(args);
         }
 
         public void PrintUsage(string[] args)
         {
-            const string A = "LEARNING_SET_PATH",
-                         B = "NETWORK_DEFINITION_PATH";
+            const string LearningSetPath = "LEARNING_SET_PATH",
+                         NetworkDefinitionPath = "NETWORK_DEFINITION_PATH";
             Console.WriteLine("USAGE:");
             Console.WriteLine();
-            Console.WriteLine("  {0} [OPTIONS] {1} {2}", AppDomain.CurrentDomain.FriendlyName, A, B);
+            Console.WriteLine("  {0} [-{1}|-{2}] [OPTIONS] {3} {4}",
+                              AppDomain.CurrentDomain.FriendlyName,
+                              ShortClassificationOption,
+                              ShortRegressionOption,
+                              LearningSetPath,
+                              NetworkDefinitionPath);
             Console.WriteLine();
             Console.WriteLine("WHERE:");
             Console.WriteLine();
-            Console.WriteLine("    {0,-24} is path to CSV file with learning set.", A);
+            Console.WriteLine("    {0,-24} is path to CSV file with learning set.", LearningSetPath);
             Console.WriteLine();
-            Console.WriteLine("    {0,-24} is path to text file with defined neural network.", B);
-            Console.WriteLine();
-            Console.WriteLine("OPTIONS:");
-            Console.WriteLine();
-            Console.WriteLine("    -{0}, --{1} TESTING_SET_PATH", ShortTestingPathOption, LongTestingPathOption);
-            Console.WriteLine("          Path to CSV file with testing set.\n" +
-                              "          If not given, testing set is the same as learning set.");
-            Console.WriteLine();
-            Console.WriteLine("    -{0}, --{1} LOG_FILE_PATH", ShortLogPathOption, LongLogPathOption);
-            Console.WriteLine("          Path to log text file which will be created.");
-            Console.WriteLine();
-            Console.WriteLine("    -{0}, --{1} ITERATIONS", ShortIterationsOption, LongIterationsOption);
-            Console.WriteLine("          Number of iterations for learning process.");
-            Console.WriteLine();
-            Console.WriteLine("    -{0}, --{1}", ShortHelpOption, LongHelpOption);
-            Console.WriteLine("          Print this usage and exit.");
-            Console.WriteLine();
-            Console.WriteLine("  Exactly one of the following options is required:");
+            Console.WriteLine("    {0,-24} is path to text file with neural network definition.", NetworkDefinitionPath);
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1}", ShortClassificationOption, LongClassificationOption);
             Console.WriteLine("          Choose classification problem solver.");
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1}", ShortRegressionOption, LongRegressionOption);
             Console.WriteLine("          Choose regression problem solver.");
+            Console.WriteLine();
+            Console.WriteLine("OPTIONS:");
+            Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1} PATH", ShortTestingPathOption, LongTestingPathOption);
+            Console.WriteLine("          Path to CSV file with testing set.");
+            Console.WriteLine("          If not given, testing set is the same as learning set.");
+            Console.WriteLine("          If not specified, default path PATH={0} is assigned.", DefaultTestingFilePath);
+            Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1} N", ShortIterationsOption, LongIterationsOption);
+            Console.WriteLine("          Number of iterations for learning process.");
+            Console.WriteLine("          If not specified, default number N={0} is assigned.", DefaultNumberOfIterations);
+            Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1} VAL", ShortInertiaValueOption, LongInertiaValueOption);
+            Console.WriteLine("          Inertia value used for learning process. VAL must be from range [{0}; {1}].", MinAllowedInertiaValue, MaxAllowedInertiaValue);
+            Console.WriteLine("          If not specified, default inertia value VAL={0} is assigned.", DefaultInertiaValue);
+            Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1} PATH", ShortLogPathOption, LongLogPathOption);
+            Console.WriteLine("          Path to log text file which will be created.");
+            Console.WriteLine("          If not specified, default path PATH={0} is assigned.", DefaultLogFilePath);
+            Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1}", ShortHelpOption, LongHelpOption);
+            Console.WriteLine("          Print this help/usage and exit.");
         }
 
         private void Parse(IEnumerable<string> args)
@@ -115,6 +125,7 @@ namespace sieci_neuronowe
                 { ShortRegressionOption + "|" + LongRegressionOption, "Choose regression problem.", v => { if (v != null) regression = true; } },
                 { ShortTestingPathOption + "|" + LongTestingPathOption + "=", "Path to testing CSV.", v => TestingSetFilePath = v },
                 { ShortIterationsOption + "|" + LongIterationsOption + "=", "Number of iterations.", (int v) => NumberOfIterations = v },
+                { ShortInertiaValueOption + "|" + LongInertiaValueOption + "=", "Inertia value for learning process.", (double v) => InertiaValue = v },
                 { ShortLogPathOption + "|" + LongLogPathOption + "=", "Path to log text file for debugging purposes.", v => LogFilePath = v }
             };
 
@@ -145,6 +156,10 @@ namespace sieci_neuronowe
             {
                 MessageForUser = "Number of iterations must be positive number";
             }
+            else if (InertiaValue < MinAllowedInertiaValue || InertiaValue > MaxAllowedInertiaValue)
+            {
+                MessageForUser = string.Format("Inertia value must be from range [{0}; {1}].", MinAllowedInertiaValue, MaxAllowedInertiaValue);
+            }
             else if (!File.Exists(LearningSetFilePath = unrecognizedOptions[0]))
             {
                 MessageForUser = "Specified file with learning set doesn't exist.";
@@ -162,6 +177,7 @@ namespace sieci_neuronowe
 
             if (string.IsNullOrEmpty(TestingSetFilePath))
             {
+                Console.WriteLine("Testing set was not specified explicity. Assuming that learning set is the same as testing set.");
                 TestingSetFilePath = LearningSetFilePath;
             }
             else if (!File.Exists(TestingSetFilePath))
@@ -177,6 +193,7 @@ namespace sieci_neuronowe
 
             if (string.IsNullOrEmpty(LogFilePath))
             {
+                Console.WriteLine("Log file path was not specified explicity. Assuming that log file path is '{0}'.", DefaultLogFilePath);
                 LogFilePath = DefaultLogFilePath;
             }
             else if (File.Exists(LogFilePath))
@@ -191,14 +208,6 @@ namespace sieci_neuronowe
             else if (!classification && !regression)
             {
                 MessageForUser = "Neither classification nor regression flag was set.";
-            }
-            else if (classification)
-            {
-                this.Problem = ProblemType.Classification;
-            }
-            else if (regression)
-            {
-                this.Problem = ProblemType.Regression;
             }
 
             SetParserState();
