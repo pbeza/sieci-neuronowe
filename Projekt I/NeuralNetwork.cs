@@ -29,49 +29,42 @@
         #region Constants
 
         private const string FirstColumn = "x";
-
-        private const string GeneratedImagePath = @".\area_classification.bmp";
-
-        private const string PredictColumn = "cls";
-
-        private const int RandomnessSeed = 1001;
-
         private const string SecondColumn = "y";
-
+        private const string PredictColumn = "cls";
+        private const string GeneratedImagePath = @".\area_classification.bmp";
         private const string TrainingErrorDataPath = @".\training_error_data.txt";
-
         private const string VerificationErrorDataPath = @".\verification_error_data.txt";
+        private const int RandomnessSeed = 1001;
 
         #endregion
 
         #region Fields
 
-        private readonly bool isRegression;
-
         private readonly string learningPath;
-
         private readonly string logOutputPath;
-
-        private readonly Random rng;
-
         private readonly string testingPath;
+        private readonly double inertia; // TODO Unused!
+        private readonly BasicNetwork neuralNetwork; // TODO Unused!
+        private readonly CommandLineParser.ProblemType problemType;
+        private readonly Random rng;
 
         #endregion
 
         #region Constructors and Destructors
 
-        public NeuralNetwork(CommandLineParser parser)
-            : this(parser.LearningSetFilePath, parser.TestingSetFilePath, parser.LogFilePath)
-        {
-        }
+        public NeuralNetwork(CommandLineParser parser, BasicNetwork neuralNetwork)
+            : this(parser.LearningSetFilePath, parser.TestingSetFilePath, parser.LogFilePath, parser.InertiaValue, parser.Problem, neuralNetwork)
+        { }
 
-        public NeuralNetwork(string learningPath, string testingPath, string logOutputPath, bool regression = false)
+        public NeuralNetwork(string learningPath, string testingPath, string logOutputPath, double inertiaValue, CommandLineParser.ProblemType problem, BasicNetwork neuralNetwork)
         {
             this.testingPath = testingPath ?? learningPath;
             this.learningPath = learningPath;
             this.logOutputPath = logOutputPath;
+            this.inertia = inertiaValue;
             this.rng = new Random(RandomnessSeed);
-            this.isRegression = regression;
+            this.problemType = problem;
+            this.neuralNetwork = neuralNetwork;
         }
 
         #endregion
@@ -86,9 +79,9 @@
             // class.  After you train, you can save the NormalizationHelper to later
             // normalize and denormalize your data.
             var csvLearningDataSource = new CSVDataSource(this.learningPath, true, CSVFormat.DecimalPoint);
-            VersatileMLDataSet dataSet = this.isRegression
-                                             ? PrepareRegressionDataSet(csvLearningDataSource)
-                                             : PrepareClassificationDataSet(csvLearningDataSource);
+            var dataSet = problemType == CommandLineParser.ProblemType.Regression ?
+                                         PrepareRegressionDataSet(csvLearningDataSource) :
+                                         PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
 
             // Create feedforward neural network as the model type. MLMethodFactory.TYPE_FEEDFORWARD.
@@ -117,15 +110,14 @@
             // Choose whatever is the default training type for this model.
             trainingModel.SelectTrainingType(dataSet);
 
-            BasicNetwork network = CreateNetwork(this.rng, this.isRegression);
+            var network = CreateNetwork();
 
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
 
-            var backpropagation = new Backpropagation(network, dataSet, 0.00003, 0.001);
-            backpropagation.BatchSize = 1; // Online
+            var backpropagation = new Backpropagation(network, dataSet, 0.00003, 0.001) { BatchSize = 1 };
             const int IterationCount = 1000;
-            for (int i = 0; i < IterationCount; i++)
+            for (var i = 0; i < IterationCount; i++)
             {
                 backpropagation.Iteration();
                 if (i % 100 == 0)
@@ -139,7 +131,7 @@
                     continue;
                 }
 
-                double err = backpropagation.Error;
+                var err = backpropagation.Error;
                 writetext.WriteLine("Backpropagation error: " + err);
                 Console.WriteLine("Iteration progress: " + i + "/" + IterationCount + ", error: " + err);
             }
@@ -171,7 +163,7 @@
 
             writetext.WriteLine("Neuron weight dump: " + network.DumpWeights());
 
-            if (!this.isRegression)
+            if (problemType == CommandLineParser.ProblemType.Classification)
             {
                 var allPoints = new List<NeuroPoint>();
                 TestClassificationData(this.learningPath, normHelper, usedMethod, allPoints);
@@ -198,12 +190,12 @@
 
         private static double ClassificationError(BasicNetwork method, MatrixMLDataSet data)
         {
-            int correct = 0;
-            int total = 0;
+            int correct = 0,
+                total = 0;
             foreach (var pair in data)
             {
-                int computed = method.Classify(pair.Input);
-                for (int i = 0; i < pair.Ideal.Count; i++)
+                var computed = method.Classify(pair.Input);
+                for (var i = 0; i < pair.Ideal.Count; i++)
                 {
                     if (computed == i && pair.Ideal[i] < 0.99999)
                     {
@@ -224,12 +216,12 @@
             return (total - correct) / (double)total;
         }
 
-        private static BasicNetwork CreateNetwork(Random rng, bool isRegression)
+        private BasicNetwork CreateNetwork()
         {
             var network = new BasicNetwork();
 
             // TODO: Wszystkie parametry konfigurowalne dla każdego layera (poza pierwszym bo input?)
-            if (isRegression)
+            if (problemType == CommandLineParser.ProblemType.Regression)
             {
                 network.AddLayer(new BasicLayer(new ActivationLinear(), true, 1));
                 network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
@@ -301,9 +293,9 @@
                 var result = new StringBuilder();
 
                 result.AppendFormat(
-                    "({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}", 
-                    point.X, 
-                    point.Y, 
+                    "({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}",
+                    point.X,
+                    point.Y,
                     point.Category);
                 if (point.Correct >= 0)
                 {
@@ -329,16 +321,16 @@
             }
         }
 
-        private static double RegressionError(BasicNetwork method, MatrixMLDataSet data)
+        private static double RegressionError(IMLRegression method, IEnumerable<IMLDataPair> data)
         {
-            double error = 0.0;
-            int total = 0;
+            var error = 0.0;
+            var total = 0;
             foreach (var pair in data)
             {
-                IMLData computed = method.Compute(pair.Input);
-                int min = Math.Min(computed.Count, pair.Ideal.Count);
-                int max = Math.Max(computed.Count, pair.Ideal.Count);
-                for (int i = 0; i < min; i++)
+                var computed = method.Compute(pair.Input);
+                int min = Math.Min(computed.Count, pair.Ideal.Count),
+                    max = Math.Max(computed.Count, pair.Ideal.Count);
+                for (var i = 0; i < min; i++)
                 {
                     error += Math.Abs(computed[i] - pair.Ideal[i]);
                 }
@@ -351,18 +343,18 @@
         }
 
         private static void TestClassificationData(
-            string testedPath, 
-            NormalizationHelper helper, 
-            IMLRegression usedMethod, 
+            string testedPath,
+            NormalizationHelper helper,
+            IMLRegression usedMethod,
             ICollection<NeuroPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
             while (csv.Next())
             {
-                double x = csv.GetDouble(0);
-                double y = csv.GetDouble(1);
-                int correct = -1;
+                double x = csv.GetDouble(0),
+                       y = csv.GetDouble(1);
+                var correct = -1;
                 if (csv.ColumnCount > 2)
                 {
                     correct = (int)csv.GetDouble(2);
@@ -380,17 +372,16 @@
         }
 
         private static void TestRegressionData(
-            string testedPath, 
-            NormalizationHelper helper, 
-            IMLRegression usedMethod, 
+            string testedPath,
+            NormalizationHelper helper,
+            IMLRegression usedMethod,
             ICollection<NeuroPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
             while (csv.Next())
             {
-                double x = csv.GetDouble(0);
-                double y = double.NegativeInfinity;
+                double x = csv.GetDouble(0), y;
                 if (csv.ColumnCount > 1)
                 {
                     y = csv.GetDouble(1);
@@ -398,8 +389,8 @@
 
                 var data = new BasicMLData(new[] { x });
                 helper.NormalizeInputVector(new[] { csv.Get(0) }, data.Data, false);
-                IMLData output = usedMethod.Compute(data);
-                string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
+                var output = usedMethod.Compute(data);
+                var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 y = double.Parse(stringChosen);
                 results.Add(new NeuroPoint(x, y, -1, -1));
             }
@@ -409,7 +400,9 @@
 
         private double CalcError(BasicNetwork method, MatrixMLDataSet data)
         {
-            return this.isRegression ? RegressionError(method, data) : ClassificationError(method, data);
+            return problemType == CommandLineParser.ProblemType.Regression ?
+                   RegressionError(method, data) :
+                   ClassificationError(method, data);
         }
 
         #endregion

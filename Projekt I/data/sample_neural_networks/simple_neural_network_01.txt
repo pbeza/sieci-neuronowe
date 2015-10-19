@@ -16,7 +16,7 @@
 # NOTE
 #
 #    1. Double and float numbers use comma or dot
-#       character depending on your system language.
+#       character depending on your locale.
 #    2. All whitespaces are ignored.
 #    3. Comments begin with '#' character.
 #
