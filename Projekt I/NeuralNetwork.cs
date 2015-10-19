@@ -1,69 +1,47 @@
-﻿namespace sieci_neuronowe
+﻿using Encog;
+using Encog.Engine.Network.Activation;
+using Encog.ML;
+using Encog.ML.Data;
+using Encog.ML.Data.Basic;
+using Encog.ML.Data.Versatile;
+using Encog.ML.Data.Versatile.Columns;
+using Encog.ML.Data.Versatile.Sources;
+using Encog.ML.Factory;
+using Encog.ML.Model;
+using Encog.Neural.Networks;
+using Encog.Neural.Networks.Layers;
+using Encog.Neural.Networks.Training.Propagation.Back;
+using Encog.Util.CSV;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+
+namespace sieci_neuronowe
 {
-    #region
-
-    using Encog;
-    using Encog.Engine.Network.Activation;
-    using Encog.ML;
-    using Encog.ML.Data;
-    using Encog.ML.Data.Basic;
-    using Encog.ML.Data.Versatile;
-    using Encog.ML.Data.Versatile.Columns;
-    using Encog.ML.Data.Versatile.Sources;
-    using Encog.ML.Factory;
-    using Encog.ML.Model;
-    using Encog.Neural.Networks;
-    using Encog.Neural.Networks.Layers;
-    using Encog.Neural.Networks.Training.Propagation.Back;
-    using Encog.Util.CSV;
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Text;
-
-    #endregion
-
     public class NeuralNetwork
     {
-        #region Constants
-
         private const string FirstColumn = "x";
-
         private const string SecondColumn = "y";
-
         private const string PredictColumn = "cls";
-
         private const string GeneratedImagePath = @".\area_classification.bmp";
-
         private const string TrainingErrorDataPath = @".\training_error_data.txt";
-
         private const string VerificationErrorDataPath = @".\verification_error_data.txt";
-
         private const int RandomnessSeed = 1001;
-
-        #endregion
-
-        #region Fields
-
+        private const double ValidationPercent = 0.3;
+        private const double LearnRate = 0.00003;
+        private const int BackpropagationBatchSize = 1;
+        private const int ImageResolutionX = 1024;
+        private const int ImageResolutionY = 1024;
+        private const bool IfShuffle = true;
         private readonly int iterationsNumber;
-
         private readonly double momentum;
-
         private readonly string learningPath;
-
         private readonly string logOutputPath;
-
         private readonly BasicNetwork neuralNetwork;
-
         private readonly CommandLineParser.ProblemType problemType;
-
         private readonly string testingPath;
-
-        private readonly Random rng;
-
-        #endregion
-
-        #region Constructors and Destructors
+        private readonly Random randomnessSeed;
 
         public NeuralNetwork(CommandLineParser parser, BasicNetwork neuralNetwork)
             : this(
@@ -82,23 +60,19 @@
             string testingPath,
             string logOutputPath,
             int iterationsNumber,
-            double momentumValue,
-            CommandLineParser.ProblemType problem,
+            double momentum,
+            CommandLineParser.ProblemType problemType,
             BasicNetwork neuralNetwork)
         {
             this.testingPath = testingPath ?? learningPath;
             this.learningPath = learningPath;
             this.logOutputPath = logOutputPath;
             this.iterationsNumber = iterationsNumber;
-            this.momentum = momentumValue;
-            this.rng = new Random(RandomnessSeed);
-            this.problemType = problem;
+            this.momentum = momentum;
+            this.randomnessSeed = new Random(RandomnessSeed);
+            this.problemType = problemType;
             this.neuralNetwork = neuralNetwork;
         }
-
-        #endregion
-
-        #region Public Methods and Operators
 
         public void Run()
         {
@@ -108,8 +82,8 @@
             // class.  After you train, you can save the NormalizationHelper to later
             // normalize and denormalize your data.
 
-            var csvLearningDataSource = new CSVDataSource(this.learningPath, true, CSVFormat.DecimalPoint);
-            var dataSet = this.problemType == CommandLineParser.ProblemType.Regression
+            var csvLearningDataSource = new CSVDataSource(learningPath, true, CSVFormat.DecimalPoint);
+            var dataSet = problemType == CommandLineParser.ProblemType.Regression
                           ? PrepareRegressionDataSet(csvLearningDataSource)
                           : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
@@ -126,7 +100,7 @@
 
             // Send any output to the console.
 
-            var writetext = new StreamWriter(this.logOutputPath);
+            var writetext = new StreamWriter(logOutputPath);
             trainingModel.Report = new StreamStatusReportable(writetext);
 
             // Now normalize the data.  Encog will automatically determine the correct normalization
@@ -137,19 +111,18 @@
             // Hold back some data for a final validation.
             // Shuffle the data into a random ordering.
 
-            trainingModel.HoldBackValidation(0.3, true, RandomnessSeed);
+            trainingModel.HoldBackValidation(ValidationPercent, IfShuffle, RandomnessSeed);
 
             // Choose whatever is the default training type for this model.
 
             trainingModel.SelectTrainingType(dataSet);
 
-            var network = this.neuralNetwork ?? CreateNetwork(this.rng, this.problemType == CommandLineParser.ProblemType.Regression);
+            var network = neuralNetwork ?? CreateNetwork(randomnessSeed, problemType == CommandLineParser.ProblemType.Regression);
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
+            var backpropagation = new Backpropagation(network, dataSet, LearnRate, momentum) { BatchSize = BackpropagationBatchSize };
 
-            var backpropagation = new Backpropagation(network, dataSet, 0.00003, this.momentum) { BatchSize = 1 };
-
-            for (var i = 0; i < this.iterationsNumber; i++)
+            for (var i = 0; i < iterationsNumber; i++)
             {
                 backpropagation.Iteration();
                 if (i % 100 == 0)
@@ -158,14 +131,14 @@
                     verificationErrorWriter.WriteLine(CalcError(network, trainingModel.ValidationDataset));
                 }
 
-                if (i % (this.iterationsNumber / 10) != 0)
+                if (i % (iterationsNumber / 10) != 0)
                 {
                     continue;
                 }
 
-                double err = backpropagation.Error;
+                var err = backpropagation.Error;
                 writetext.WriteLine("Backpropagation error: " + err);
-                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, this.iterationsNumber, err);
+                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, err);
             }
 
             trainingErrorWriter.Close();
@@ -178,7 +151,7 @@
             // var usedMethod = (BasicNetwork)trainingModel.Crossvalidate(5, true);
 
             // Display our normalization parameters.
-            NormalizationHelper normHelper = dataSet.NormHelper;
+            var normHelper = dataSet.NormHelper;
             writetext.WriteLine(normHelper);
 
             // Display the final model.
@@ -190,34 +163,29 @@
             writetext.WriteLine(
                 "Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
             */
-            writetext.WriteLine("Training error: " + this.CalcError(usedMethod, trainingModel.TrainingDataset));
-            writetext.WriteLine("Validation error: " + this.CalcError(usedMethod, trainingModel.ValidationDataset));
-
+            writetext.WriteLine("Training error: " + CalcError(usedMethod, trainingModel.TrainingDataset));
+            writetext.WriteLine("Validation error: " + CalcError(usedMethod, trainingModel.ValidationDataset));
             writetext.WriteLine("Neuron weight dump: " + network.DumpWeights());
 
             var allPoints = new List<ClassifiedPoint>();
-            this.TestData(this.learningPath, normHelper, usedMethod, allPoints);
-            this.TestData(this.testingPath, normHelper, usedMethod, allPoints);
+            TestData(learningPath, normHelper, usedMethod, allPoints);
+            TestData(testingPath, normHelper, usedMethod, allPoints);
             PrintPoints(allPoints, writetext);
-            this.DrawPicture(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
+            DrawPicture(GeneratedImagePath, usedMethod, allPoints, normHelper, ImageResolutionX, ImageResolutionY);
 
             writetext.Close();
 
             EncogFramework.Instance.Shutdown();
         }
 
-        #endregion
-
-        #region Methods
-
         private static double ClassificationError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
-            int correct = 0;
-            int total = 0;
+            var correct = 0;
+            var total = 0;
             foreach (var pair in data)
             {
-                int computed = method.Classify(pair.Input);
-                for (int i = 0; i < pair.Ideal.Count; i++)
+                var computed = method.Classify(pair.Input);
+                for (var i = 0; i < pair.Ideal.Count; i++)
                 {
                     if (computed == i && pair.Ideal[i] < 0.99999)
                     {
@@ -259,11 +227,11 @@
             network.Structure.FinalizeStructure();
 
             // Zrób pełną sieć
-            for (int i = 0; i < network.LayerCount - 1; i++)
+            for (var i = 0; i < network.LayerCount - 1; i++)
             {
-                for (int j = 0; j < network.GetLayerNeuronCount(i); j++)
+                for (var j = 0; j < network.GetLayerNeuronCount(i); j++)
                 {
-                    for (int k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
+                    for (var k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
                     {
                         network.SetWeight(i, j, k, (rng.NextDouble() - 0.5) * 2.0);
                     }
@@ -280,7 +248,7 @@
             dataSet.DefineSourceColumn(SecondColumn, 1, ColumnType.Continuous);
 
             // Column that we are trying to predict.
-            ColumnDefinition outputColumnDefinition = dataSet.DefineSourceColumn(PredictColumn, 2, ColumnType.Nominal);
+            var outputColumnDefinition = dataSet.DefineSourceColumn(PredictColumn, 2, ColumnType.Nominal);
 
             // Analyze the data, determine the min/max/mean/sd of every column.
             dataSet.Analyze();
@@ -373,9 +341,9 @@
 
             while (csv.Next())
             {
-                double x = csv.GetDouble(0);
-                double y = csv.GetDouble(1);
-                int correct = -1;
+                var x = csv.GetDouble(0);
+                var y = csv.GetDouble(1);
+                var correct = -1;
                 if (csv.ColumnCount > 2)
                 {
                     correct = (int)csv.GetDouble(2);
@@ -417,7 +385,7 @@
 
         private double CalcError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
-            return this.problemType == CommandLineParser.ProblemType.Regression
+            return problemType == CommandLineParser.ProblemType.Regression
                        ? RegressionError(method, data)
                        : ClassificationError(method, data);
         }
@@ -430,7 +398,7 @@
             int resolutionX,
             int resolutionY)
         {
-            if (this.problemType == CommandLineParser.ProblemType.Regression)
+            if (problemType == CommandLineParser.ProblemType.Regression)
             {
                 PictureGenerator.DrawGraph(path, testFunction, points, helper, resolutionX, resolutionY);
             }
@@ -446,7 +414,7 @@
             IMLRegression usedMethod,
             ICollection<ClassifiedPoint> results)
         {
-            if (this.problemType == CommandLineParser.ProblemType.Regression)
+            if (problemType == CommandLineParser.ProblemType.Regression)
             {
                 TestRegressionData(testedPath, helper, usedMethod, results);
             }
@@ -455,7 +423,5 @@
                 TestClassificationData(testedPath, helper, usedMethod, results);
             }
         }
-
-        #endregion
     }
 }
