@@ -96,19 +96,29 @@
                 new Rectangle(0, 0, resolutionX, resolutionY), 
                 ImageLockMode.WriteOnly, 
                 PixelFormat.Format32bppArgb);
-            const double ResolutionMult = 100.0;
-            const double CoordOffset = 0.0;
-            double stepX = ResolutionMult / resolutionX;
-            double stepY = ResolutionMult / resolutionY;
+            var xmin = points.Min(p => p.X);
+            var xmax = points.Max(p => p.X);
+            var ymin = points.Min(p => p.Y);
+            var ymax = points.Max(p => p.Y);
+            const double Padding = 1.5;
+            double dx = xmax - xmin;
+            double dy = ymax - ymin;
+            double resolutionMultX = Padding * dx;
+            double resolutionMultY = Padding * dy;
+            double stepX = resolutionMultX / resolutionX;
+            double stepY = resolutionMultY / resolutionY;
+
+            double coordOffsetX = xmin + (dx / 10);
+            double coordOffsetY = ymin + (dy / 10);
 
             for (int i = 0; i < resolutionX; i++)
             {
-                double x = (i * stepX) + CoordOffset;
+                double x = (i * stepX) + coordOffsetX;
                 IMLData output = testFunction.Compute(new BasicMLData(new[] { x }));
                 string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 double y = double.Parse(stringChosen);
                 int colorRGB = RGBFromInt(1, false);
-                var j = (int)((y - CoordOffset) / stepY);
+                var j = (int)((y - coordOffsetY) / stepY);
                 if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)
                 {
                     Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
@@ -126,8 +136,8 @@
                 double y = pt.Y;
                 int colorRGB = RGBFromInt(2, false);
 
-                var i = (int)((x - CoordOffset) / stepX);
-                var j = (int)((y - CoordOffset) / stepY);
+                var i = (int)((x - coordOffsetX) / stepX);
+                var j = (int)((y - coordOffsetY) / stepY);
                 if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)
                 {
                     Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);

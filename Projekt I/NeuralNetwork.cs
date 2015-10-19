@@ -61,7 +61,11 @@
         #region Constructors and Destructors
 
         public NeuralNetwork(CommandLineParser parser)
-            : this(parser.LearningSetFilePath, parser.TestingSetFilePath, parser.LogFilePath)
+            : this(
+                parser.LearningSetFilePath, 
+                parser.TestingSetFilePath, 
+                parser.LogFilePath, 
+                parser.Problem == CommandLineParser.ProblemType.Regression)
         {
         }
 
@@ -171,21 +175,11 @@
 
             writetext.WriteLine("Neuron weight dump: " + network.DumpWeights());
 
-            if (!this.isRegression)
-            {
-                var allPoints = new List<NeuroPoint>();
-                TestClassificationData(this.learningPath, normHelper, usedMethod, allPoints);
-                TestClassificationData(this.testingPath, normHelper, usedMethod, allPoints);
-                PrintPoints(allPoints, writetext);
-                PictureGenerator.DrawArea(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
-            }
-            else
-            {
-                var allPoints = new List<NeuroPoint>();
-                TestRegressionData(this.learningPath, normHelper, usedMethod, allPoints);
-                TestRegressionData(this.testingPath, normHelper, usedMethod, allPoints);
-                PictureGenerator.DrawGraph(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
-            }
+            var allPoints = new List<ClassifiedPoint>();
+            this.TestData(this.learningPath, normHelper, usedMethod, allPoints);
+            this.TestData(this.testingPath, normHelper, usedMethod, allPoints);
+            PrintPoints(allPoints, writetext);
+            this.DrawPicture(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
 
             writetext.Close();
 
@@ -294,7 +288,7 @@
             return dataSet;
         }
 
-        private static void PrintPoints(IEnumerable<NeuroPoint> points, StreamWriter writetext)
+        private static void PrintPoints(IEnumerable<ClassifiedPoint> points, StreamWriter writetext)
         {
             foreach (var point in points)
             {
@@ -354,7 +348,7 @@
             string testedPath, 
             NormalizationHelper helper, 
             IMLRegression usedMethod, 
-            ICollection<NeuroPoint> results)
+            ICollection<ClassifiedPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
@@ -373,7 +367,7 @@
                 IMLData output = usedMethod.Compute(data);
                 string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 int computed = int.Parse(stringChosen);
-                results.Add(new NeuroPoint(x, y, computed, correct));
+                results.Add(new ClassifiedPoint(x, y, computed, correct));
             }
 
             csv.Close();
@@ -383,25 +377,20 @@
             string testedPath, 
             NormalizationHelper helper, 
             IMLRegression usedMethod, 
-            ICollection<NeuroPoint> results)
+            ICollection<ClassifiedPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
             while (csv.Next())
             {
                 double x = csv.GetDouble(0);
-                double y = double.NegativeInfinity;
-                if (csv.ColumnCount > 1)
-                {
-                    y = csv.GetDouble(1);
-                }
 
                 var data = new BasicMLData(new[] { x });
                 helper.NormalizeInputVector(new[] { csv.Get(0) }, data.Data, false);
                 IMLData output = usedMethod.Compute(data);
                 string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
-                y = double.Parse(stringChosen);
-                results.Add(new NeuroPoint(x, y, -1, -1));
+                double y = double.Parse(stringChosen);
+                results.Add(new ClassifiedPoint(x, y, -1, -1));
             }
 
             csv.Close();
@@ -410,6 +399,40 @@
         private double CalcError(BasicNetwork method, MatrixMLDataSet data)
         {
             return this.isRegression ? RegressionError(method, data) : ClassificationError(method, data);
+        }
+
+        private void DrawPicture(
+            string path, 
+            IMLRegression testFunction, 
+            List<ClassifiedPoint> points, 
+            NormalizationHelper helper, 
+            int resolutionX, 
+            int resolutionY)
+        {
+            if (this.isRegression)
+            {
+                PictureGenerator.DrawGraph(path, testFunction, points, helper, resolutionX, resolutionY);
+            }
+            else
+            {
+                PictureGenerator.DrawArea(path, testFunction, points, helper, resolutionX, resolutionY);
+            }
+        }
+
+        private void TestData(
+            string testedPath, 
+            NormalizationHelper helper, 
+            IMLRegression usedMethod, 
+            ICollection<ClassifiedPoint> results)
+        {
+            if (this.isRegression)
+            {
+                TestRegressionData(testedPath, helper, usedMethod, results);
+            }
+            else
+            {
+                TestClassificationData(testedPath, helper, usedMethod, results);
+            }
         }
 
         #endregion
