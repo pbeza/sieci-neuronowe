@@ -2,11 +2,6 @@
 {
     #region
 
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Text;
-
     using Encog;
     using Encog.Engine.Network.Activation;
     using Encog.ML;
@@ -21,6 +16,10 @@
     using Encog.Neural.Networks.Layers;
     using Encog.Neural.Networks.Training.Propagation.Back;
     using Encog.Util.CSV;
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text;
 
     #endregion
 
@@ -30,35 +29,37 @@
 
         private const string FirstColumn = "x";
 
-        private const string GeneratedImagePath = @".\area_classification.bmp";
+        private const string SecondColumn = "y";
 
         private const string PredictColumn = "cls";
 
-        private const int RandomnessSeed = 1001;
-
-        private const string SecondColumn = "y";
+        private const string GeneratedImagePath = @".\area_classification.bmp";
 
         private const string TrainingErrorDataPath = @".\training_error_data.txt";
 
         private const string VerificationErrorDataPath = @".\verification_error_data.txt";
 
+        private const int RandomnessSeed = 1001;
+
         #endregion
 
         #region Fields
 
-        private readonly double momentum; // TODO Unused!
+        private readonly int iterationsNumber;
+
+        private readonly double momentum;
 
         private readonly string learningPath;
 
         private readonly string logOutputPath;
 
-        private readonly BasicNetwork neuralNetwork; // TODO Unused!
+        private readonly BasicNetwork neuralNetwork;
 
         private readonly CommandLineParser.ProblemType problemType;
 
-        private readonly Random rng;
-
         private readonly string testingPath;
+
+        private readonly Random rng;
 
         #endregion
 
@@ -66,26 +67,29 @@
 
         public NeuralNetwork(CommandLineParser parser, BasicNetwork neuralNetwork)
             : this(
-                parser.LearningSetFilePath, 
-                parser.TestingSetFilePath, 
-                parser.LogFilePath, 
-                parser.InertiaValue, 
-                parser.Problem, 
+                parser.LearningSetFilePath,
+                parser.TestingSetFilePath,
+                parser.LogFilePath,
+                parser.NumberOfIterations,
+                parser.InertiaValue,
+                parser.Problem,
                 neuralNetwork)
         {
         }
 
         public NeuralNetwork(
-            string learningPath, 
-            string testingPath, 
-            string logOutputPath, 
-            double momentumValue, 
-            CommandLineParser.ProblemType problem, 
+            string learningPath,
+            string testingPath,
+            string logOutputPath,
+            int iterationsNumber,
+            double momentumValue,
+            CommandLineParser.ProblemType problem,
             BasicNetwork neuralNetwork)
         {
             this.testingPath = testingPath ?? learningPath;
             this.learningPath = learningPath;
             this.logOutputPath = logOutputPath;
+            this.iterationsNumber = iterationsNumber;
             this.momentum = momentumValue;
             this.rng = new Random(RandomnessSeed);
             this.problemType = problem;
@@ -103,10 +107,11 @@
             // training set.  You do not need to retrain, simply use the NormalizationHelper
             // class.  After you train, you can save the NormalizationHelper to later
             // normalize and denormalize your data.
+
             var csvLearningDataSource = new CSVDataSource(this.learningPath, true, CSVFormat.DecimalPoint);
-            VersatileMLDataSet dataSet = this.problemType == CommandLineParser.ProblemType.Regression
-                                             ? PrepareRegressionDataSet(csvLearningDataSource)
-                                             : PrepareClassificationDataSet(csvLearningDataSource);
+            var dataSet = this.problemType == CommandLineParser.ProblemType.Regression
+                          ? PrepareRegressionDataSet(csvLearningDataSource)
+                          : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
 
             // Create feedforward neural network as the model type. MLMethodFactory.TYPE_FEEDFORWARD.
@@ -115,54 +120,52 @@
             // MLMethodFactory.TYPE_RBFNETWORK: RBF Neural Network
             // MLMethodFactor.TYPE_NEAT: NEAT Neural Network
             // MLMethodFactor.TYPE_PNN: Probabilistic Neural Network
+
             var trainingModel = new EncogModel(dataSet);
             trainingModel.SelectMethod(dataSet, MLMethodFactory.TypeFeedforward);
 
             // Send any output to the console.
-            var writetext = new StreamWriter(this.logOutputPath);
 
+            var writetext = new StreamWriter(this.logOutputPath);
             trainingModel.Report = new StreamStatusReportable(writetext);
 
             // Now normalize the data.  Encog will automatically determine the correct normalization
             // type based on the model you chose in the last step.
+
             dataSet.Normalize();
 
             // Hold back some data for a final validation.
             // Shuffle the data into a random ordering.
-            // Use a seed of 1001 so that we always use the same holdback and will get more consistent results.
+
             trainingModel.HoldBackValidation(0.3, true, RandomnessSeed);
 
             // Choose whatever is the default training type for this model.
+
             trainingModel.SelectTrainingType(dataSet);
 
-            BasicNetwork network = neuralNetwork
-                                   ?? CreateNetwork(
-                                       this.rng,
-                                       this.problemType == CommandLineParser.ProblemType.Regression);
-
+            var network = this.neuralNetwork ?? CreateNetwork(this.rng, this.problemType == CommandLineParser.ProblemType.Regression);
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
 
-            var backpropagation = new Backpropagation(network, dataSet, 0.00003, momentum);
-            backpropagation.BatchSize = 1; // Online
-            const int IterationCount = 1000;
-            for (int i = 0; i < IterationCount; i++)
+            var backpropagation = new Backpropagation(network, dataSet, 0.00003, this.momentum) { BatchSize = 1 };
+
+            for (var i = 0; i < this.iterationsNumber; i++)
             {
                 backpropagation.Iteration();
                 if (i % 100 == 0)
                 {
-                    trainingErrorWriter.WriteLine(this.CalcError(network, trainingModel.TrainingDataset));
-                    verificationErrorWriter.WriteLine(this.CalcError(network, trainingModel.ValidationDataset));
+                    trainingErrorWriter.WriteLine(CalcError(network, trainingModel.TrainingDataset));
+                    verificationErrorWriter.WriteLine(CalcError(network, trainingModel.ValidationDataset));
                 }
 
-                if (i % (IterationCount / 10) != 0)
+                if (i % (this.iterationsNumber / 10) != 0)
                 {
                     continue;
                 }
 
                 double err = backpropagation.Error;
                 writetext.WriteLine("Backpropagation error: " + err);
-                Console.WriteLine("Iteration progress: " + i + "/" + IterationCount + ", error: " + err);
+                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, this.iterationsNumber, err);
             }
 
             trainingErrorWriter.Close();
@@ -207,7 +210,7 @@
 
         #region Methods
 
-        private static double ClassificationError(BasicNetwork method, MatrixMLDataSet data)
+        private static double ClassificationError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
             int correct = 0;
             int total = 0;
@@ -312,9 +315,9 @@
                 var result = new StringBuilder();
 
                 result.AppendFormat(
-                    "({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}", 
-                    point.X, 
-                    point.Y, 
+                    "({0: 0.00;-0.00}, {1: 0.00;-0.00}) -> predicted: {2}",
+                    point.X,
+                    point.Y,
                     point.Category);
                 if (point.Correct >= 0)
                 {
@@ -327,12 +330,12 @@
 
         private static void PrintWeights(BasicNetwork network, TextWriter writer)
         {
-            for (int i = 0; i < network.LayerCount - 1; i++)
+            for (var i = 0; i < network.LayerCount - 1; i++)
             {
-                writer.WriteLine("Layer {0}, neurons number {1}", i, network.GetLayerNeuronCount(i));
-                for (int j = 0; j < network.GetLayerNeuronCount(i); j++)
+                writer.WriteLine("Layer: {0}. Neurons number: {1}.", i, network.GetLayerNeuronCount(i));
+                for (var j = 0; j < network.GetLayerNeuronCount(i); j++)
                 {
-                    for (int k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
+                    for (var k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
                     {
                         writer.WriteLine("{0}->{1}: {2:F3}", j, k, network.GetWeight(i, j, k));
                     }
@@ -340,20 +343,19 @@
             }
         }
 
-        private static double RegressionError(BasicNetwork method, MatrixMLDataSet data)
+        private static double RegressionError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
-            double error = 0.0;
-            int total = 0;
+            var error = 0.0;
+            var total = 0;
             foreach (var pair in data)
             {
-                IMLData computed = method.Compute(pair.Input);
-                int min = Math.Min(computed.Count, pair.Ideal.Count);
-                int max = Math.Max(computed.Count, pair.Ideal.Count);
-                for (int i = 0; i < min; i++)
+                var computed = method.Compute(pair.Input);
+                var min = Math.Min(computed.Count, pair.Ideal.Count);
+                var max = Math.Max(computed.Count, pair.Ideal.Count);
+                for (var i = 0; i < min; i++)
                 {
                     error += Math.Abs(computed[i] - pair.Ideal[i]);
                 }
-
                 error += max - min;
                 total += max;
             }
@@ -362,9 +364,9 @@
         }
 
         private static void TestClassificationData(
-            string testedPath, 
-            NormalizationHelper helper, 
-            IMLRegression usedMethod, 
+            string testedPath,
+            NormalizationHelper helper,
+            IMLRegression usedMethod,
             ICollection<ClassifiedPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
@@ -381,9 +383,9 @@
 
                 var data = new BasicMLData(new[] { x, y });
                 helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, data.Data, false);
-                IMLData output = usedMethod.Compute(data);
-                string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
-                int computed = int.Parse(stringChosen);
+                var output = usedMethod.Compute(data);
+                var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
+                var computed = int.Parse(stringChosen);
                 results.Add(new ClassifiedPoint(x, y, computed, correct));
             }
 
@@ -391,29 +393,29 @@
         }
 
         private static void TestRegressionData(
-            string testedPath, 
-            NormalizationHelper helper, 
-            IMLRegression usedMethod, 
+            string testedPath,
+            NormalizationHelper helper,
+            IMLRegression usedMethod,
             ICollection<ClassifiedPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
             while (csv.Next())
             {
-                double x = csv.GetDouble(0);
+                var x = csv.GetDouble(0);
 
                 var data = new BasicMLData(new[] { x });
                 helper.NormalizeInputVector(new[] { csv.Get(0) }, data.Data, false);
-                IMLData output = usedMethod.Compute(data);
-                string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
-                double y = double.Parse(stringChosen);
+                var output = usedMethod.Compute(data);
+                var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
+                var y = double.Parse(stringChosen);
                 results.Add(new ClassifiedPoint(x, y, -1, -1));
             }
 
             csv.Close();
         }
 
-        private double CalcError(BasicNetwork method, MatrixMLDataSet data)
+        private double CalcError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
             return this.problemType == CommandLineParser.ProblemType.Regression
                        ? RegressionError(method, data)
@@ -421,11 +423,11 @@
         }
 
         private void DrawPicture(
-            string path, 
-            IMLRegression testFunction, 
-            List<ClassifiedPoint> points, 
-            NormalizationHelper helper, 
-            int resolutionX, 
+            string path,
+            IMLRegression testFunction,
+            List<ClassifiedPoint> points,
+            NormalizationHelper helper,
+            int resolutionX,
             int resolutionY)
         {
             if (this.problemType == CommandLineParser.ProblemType.Regression)
@@ -439,9 +441,9 @@
         }
 
         private void TestData(
-            string testedPath, 
-            NormalizationHelper helper, 
-            IMLRegression usedMethod, 
+            string testedPath,
+            NormalizationHelper helper,
+            IMLRegression usedMethod,
             ICollection<ClassifiedPoint> results)
         {
             if (this.problemType == CommandLineParser.ProblemType.Regression)
