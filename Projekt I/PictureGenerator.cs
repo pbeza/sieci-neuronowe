@@ -69,8 +69,63 @@
 
                 double x = pt.X;
                 double y = pt.Y;
-                int colorRGB= RGBFromInt(pt.Correct, false);
-                
+                int colorRGB = RGBFromInt(pt.Correct, false);
+
+                var i = (int)((x - CoordOffset) / stepX);
+                var j = (int)((y - CoordOffset) / stepY);
+                if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)
+                {
+                    Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
+                }
+            }
+
+            bmp.UnlockBits(lck);
+            bmp.Save(path);
+        }
+
+        public static void DrawGraph(
+            string path, 
+            IMLRegression testFunction, 
+            List<NeuroPoint> points, 
+            NormalizationHelper helper, 
+            int resolutionX, 
+            int resolutionY)
+        {
+            var bmp = new Bitmap(resolutionX, resolutionY);
+            BitmapData lck = bmp.LockBits(
+                new Rectangle(0, 0, resolutionX, resolutionY), 
+                ImageLockMode.WriteOnly, 
+                PixelFormat.Format32bppArgb);
+            const double ResolutionMult = 100.0;
+            const double CoordOffset = 0.0;
+            double stepX = ResolutionMult / resolutionX;
+            double stepY = ResolutionMult / resolutionY;
+
+            for (int i = 0; i < resolutionX; i++)
+            {
+                double x = (i * stepX) + CoordOffset;
+                IMLData output = testFunction.Compute(new BasicMLData(new[] { x }));
+                string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
+                double y = double.Parse(stringChosen);
+                int colorRGB = RGBFromInt(1, false);
+                var j = (int)((y - CoordOffset) / stepY);
+                if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)
+                {
+                    Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
+                }
+            }
+
+            foreach (var pt in points)
+            {
+                if (pt.Y < 0)
+                {
+                    continue;
+                }
+
+                double x = pt.X;
+                double y = pt.Y;
+                int colorRGB = RGBFromInt(2, false);
+
                 var i = (int)((x - CoordOffset) / stepX);
                 var j = (int)((y - CoordOffset) / stepY);
                 if (i > 0 && i < lck.Width && j > 0 && j < lck.Height)

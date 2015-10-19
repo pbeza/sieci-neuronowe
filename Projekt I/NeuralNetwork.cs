@@ -31,10 +31,6 @@
         private const string FirstColumn = "x";
 
         private const string GeneratedImagePath = @".\area_classification.bmp";
-        
-        private const string TrainingErrorDataPath = @".\training_error_data.txt";
-
-        private const string VerificationErrorDataPath = @".\verification_error_data.txt";
 
         private const string PredictColumn = "cls";
 
@@ -42,9 +38,15 @@
 
         private const string SecondColumn = "y";
 
+        private const string TrainingErrorDataPath = @".\training_error_data.txt";
+
+        private const string VerificationErrorDataPath = @".\verification_error_data.txt";
+
         #endregion
 
         #region Fields
+
+        private readonly bool isRegression;
 
         private readonly string learningPath;
 
@@ -63,12 +65,13 @@
         {
         }
 
-        public NeuralNetwork(string learningPath, string testingPath, string logOutputPath)
+        public NeuralNetwork(string learningPath, string testingPath, string logOutputPath, bool regression = false)
         {
             this.testingPath = testingPath ?? learningPath;
             this.learningPath = learningPath;
             this.logOutputPath = logOutputPath;
             this.rng = new Random(RandomnessSeed);
+            this.isRegression = regression;
         }
 
         #endregion
@@ -83,7 +86,9 @@
             // class.  After you train, you can save the NormalizationHelper to later
             // normalize and denormalize your data.
             var csvLearningDataSource = new CSVDataSource(this.learningPath, true, CSVFormat.DecimalPoint);
-            VersatileMLDataSet dataSet = PrepareDataSet(csvLearningDataSource);
+            VersatileMLDataSet dataSet = this.isRegression
+                                             ? PrepareRegressionDataSet(csvLearningDataSource)
+                                             : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
 
             // Create feedforward neural network as the model type. MLMethodFactory.TYPE_FEEDFORWARD.
@@ -112,7 +117,7 @@
             // Choose whatever is the default training type for this model.
             trainingModel.SelectTrainingType(dataSet);
 
-            BasicNetwork network = CreateNetwork(this.rng);
+            BasicNetwork network = CreateNetwork(this.rng, this.isRegression);
 
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
@@ -125,9 +130,10 @@
                 backpropagation.Iteration();
                 if (i % 100 == 0)
                 {
-                    trainingErrorWriter.WriteLine(CalcError(network, trainingModel.TrainingDataset));
-                    verificationErrorWriter.WriteLine(CalcError(network, trainingModel.ValidationDataset));
+                    trainingErrorWriter.WriteLine(this.CalcError(network, trainingModel.TrainingDataset));
+                    verificationErrorWriter.WriteLine(this.CalcError(network, trainingModel.ValidationDataset));
                 }
+
                 if (i % (IterationCount / 10) != 0)
                 {
                     continue;
@@ -145,7 +151,7 @@
             var usedMethod = (BasicNetwork)backpropagation.Method;
 
             // Use a 5-fold cross-validated train.  Return the best method found.
-            // var usedMethod = (IMLRegression)trainingModel.Crossvalidate(5, true);
+            // var usedMethod = (BasicNetwork)trainingModel.Crossvalidate(5, true);
 
             // Display our normalization parameters.
             NormalizationHelper normHelper = dataSet.NormHelper;
@@ -153,27 +159,33 @@
 
             // Display the final model.
             writetext.WriteLine("Final model: " + usedMethod);
+
             /*
             writetext.WriteLine(
                 "Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
             writetext.WriteLine(
                 "Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
             */
-
-            writetext.WriteLine(
-                "Training error: " + CalcError(usedMethod, trainingModel.TrainingDataset));
-            writetext.WriteLine(
-                "Validation error: " + CalcError(usedMethod, trainingModel.ValidationDataset));
+            writetext.WriteLine("Training error: " + this.CalcError(usedMethod, trainingModel.TrainingDataset));
+            writetext.WriteLine("Validation error: " + this.CalcError(usedMethod, trainingModel.ValidationDataset));
 
             writetext.WriteLine("Neuron weight dump: " + network.DumpWeights());
 
-            var allPoints = new List<NeuroPoint>();
-
-            TestData(this.learningPath, normHelper, usedMethod, allPoints);
-            TestData(this.testingPath, normHelper, usedMethod, allPoints);
-            PrintPoints(allPoints, writetext);
-
-            PictureGenerator.DrawArea(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
+            if (!this.isRegression)
+            {
+                var allPoints = new List<NeuroPoint>();
+                TestClassificationData(this.learningPath, normHelper, usedMethod, allPoints);
+                TestClassificationData(this.testingPath, normHelper, usedMethod, allPoints);
+                PrintPoints(allPoints, writetext);
+                PictureGenerator.DrawArea(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
+            }
+            else
+            {
+                var allPoints = new List<NeuroPoint>();
+                TestRegressionData(this.learningPath, normHelper, usedMethod, allPoints);
+                TestRegressionData(this.testingPath, normHelper, usedMethod, allPoints);
+                PictureGenerator.DrawGraph(GeneratedImagePath, usedMethod, allPoints, normHelper, 1024, 1024);
+            }
 
             writetext.Close();
 
@@ -182,13 +194,15 @@
 
         #endregion
 
-        private static double CalcError(BasicNetwork method, MatrixMLDataSet data)
+        #region Methods
+
+        private static double ClassificationError(BasicNetwork method, MatrixMLDataSet data)
         {
             int correct = 0;
             int total = 0;
             foreach (var pair in data)
             {
-                var computed = method.Classify(pair.Input);
+                int computed = method.Classify(pair.Input);
                 for (int i = 0; i < pair.Ideal.Count; i++)
                 {
                     if (computed == i && pair.Ideal[i] < 0.99999)
@@ -210,16 +224,24 @@
             return (total - correct) / (double)total;
         }
 
-        #region Methods
-
-        private static BasicNetwork CreateNetwork(Random rng)
+        private static BasicNetwork CreateNetwork(Random rng, bool isRegression)
         {
             var network = new BasicNetwork();
 
             // TODO: Wszystkie parametry konfigurowalne dla każdego layera (poza pierwszym bo input?)
-            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 2));
-            network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
-            network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
+            if (isRegression)
+            {
+                network.AddLayer(new BasicLayer(new ActivationLinear(), true, 1));
+                network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
+                network.AddLayer(new BasicLayer(new ActivationLinear(), true, 1));
+            }
+            else
+            {
+                network.AddLayer(new BasicLayer(new ActivationLinear(), true, 2));
+                network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
+                network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
+            }
+
             network.Structure.FinalizeStructure();
 
             // Zrób pełną sieć
@@ -237,7 +259,7 @@
             return network;
         }
 
-        private static VersatileMLDataSet PrepareDataSet(IVersatileDataSource dataSource)
+        private static VersatileMLDataSet PrepareClassificationDataSet(IVersatileDataSource dataSource)
         {
             var dataSet = new VersatileMLDataSet(dataSource);
             dataSet.DefineSourceColumn(FirstColumn, 0, ColumnType.Continuous);
@@ -245,6 +267,23 @@
 
             // Column that we are trying to predict.
             ColumnDefinition outputColumnDefinition = dataSet.DefineSourceColumn(PredictColumn, 2, ColumnType.Nominal);
+
+            // Analyze the data, determine the min/max/mean/sd of every column.
+            dataSet.Analyze();
+
+            // Map the prediction column to the output of the model, and all other columns to the input.
+            dataSet.DefineSingleOutputOthersInput(outputColumnDefinition);
+            dataSet.LagWindowSize = 1;
+            return dataSet;
+        }
+
+        private static VersatileMLDataSet PrepareRegressionDataSet(IVersatileDataSource dataSource)
+        {
+            var dataSet = new VersatileMLDataSet(dataSource);
+            dataSet.DefineSourceColumn(FirstColumn, 0, ColumnType.Continuous);
+
+            // Column that we are trying to predict.
+            ColumnDefinition outputColumnDefinition = dataSet.DefineSourceColumn(SecondColumn, 1, ColumnType.Continuous);
 
             // Analyze the data, determine the min/max/mean/sd of every column.
             dataSet.Analyze();
@@ -290,7 +329,28 @@
             }
         }
 
-        private static void TestData(
+        private static double RegressionError(BasicNetwork method, MatrixMLDataSet data)
+        {
+            double error = 0.0;
+            int total = 0;
+            foreach (var pair in data)
+            {
+                IMLData computed = method.Compute(pair.Input);
+                int min = Math.Min(computed.Count, pair.Ideal.Count);
+                int max = Math.Max(computed.Count, pair.Ideal.Count);
+                for (int i = 0; i < min; i++)
+                {
+                    error += Math.Abs(computed[i] - pair.Ideal[i]);
+                }
+
+                error += max - min;
+                total += max;
+            }
+
+            return error / total;
+        }
+
+        private static void TestClassificationData(
             string testedPath, 
             NormalizationHelper helper, 
             IMLRegression usedMethod, 
@@ -317,6 +377,39 @@
             }
 
             csv.Close();
+        }
+
+        private static void TestRegressionData(
+            string testedPath, 
+            NormalizationHelper helper, 
+            IMLRegression usedMethod, 
+            ICollection<NeuroPoint> results)
+        {
+            var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
+
+            while (csv.Next())
+            {
+                double x = csv.GetDouble(0);
+                double y = double.NegativeInfinity;
+                if (csv.ColumnCount > 1)
+                {
+                    y = csv.GetDouble(1);
+                }
+
+                var data = new BasicMLData(new[] { x });
+                helper.NormalizeInputVector(new[] { csv.Get(0) }, data.Data, false);
+                IMLData output = usedMethod.Compute(data);
+                string stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
+                y = double.Parse(stringChosen);
+                results.Add(new NeuroPoint(x, y, -1, -1));
+            }
+
+            csv.Close();
+        }
+
+        private double CalcError(BasicNetwork method, MatrixMLDataSet data)
+        {
+            return this.isRegression ? RegressionError(method, data) : ClassificationError(method, data);
         }
 
         #endregion

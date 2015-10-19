@@ -12,6 +12,8 @@ namespace sieci_neuronowe
         public const string DefaultLogFilePath = @".\out.txt";
         public const string DefaultTrainFilePath = @".\data\classification\data.train.csv";
         public const string DefaultTestingFilePath = @".\data\classification\data.test.csv";
+        public const string RegressionTrainFilePath = @".\data\regression\data.xsq.train.csv";
+        public const string RegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
         public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\simple_neural_network_01.txt";
         public const int DefaultNumberOfIterations = 1000;
         public static readonly string[] DefaultArgs =
