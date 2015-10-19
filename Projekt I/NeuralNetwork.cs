@@ -26,39 +26,67 @@
 
     public class NeuralNetwork
     {
+        #region Constants
+
         private const string FirstColumn = "x";
-        private const string SecondColumn = "y";
-        private const string PredictColumn = "cls";
+
         private const string GeneratedImagePath = @".\area_classification.bmp";
-        private const string TrainingErrorDataPath = @".\training_error_data.txt";
-        private const string VerificationErrorDataPath = @".\verification_error_data.txt";
+
+        private const string PredictColumn = "cls";
+
         private const int RandomnessSeed = 1001;
 
+        private const string SecondColumn = "y";
+
+        private const string TrainingErrorDataPath = @".\training_error_data.txt";
+
+        private const string VerificationErrorDataPath = @".\verification_error_data.txt";
+
+        #endregion
 
         #region Fields
 
+        private readonly double momentum; // TODO Unused!
+
         private readonly string learningPath;
+
         private readonly string logOutputPath;
-        private readonly string testingPath;
-        private readonly double inertia; // TODO Unused!
+
         private readonly BasicNetwork neuralNetwork; // TODO Unused!
+
         private readonly CommandLineParser.ProblemType problemType;
+
         private readonly Random rng;
+
+        private readonly string testingPath;
 
         #endregion
 
         #region Constructors and Destructors
 
         public NeuralNetwork(CommandLineParser parser, BasicNetwork neuralNetwork)
-            : this(parser.LearningSetFilePath, parser.TestingSetFilePath, parser.LogFilePath, parser.InertiaValue, parser.Problem, neuralNetwork)
-        { }
+            : this(
+                parser.LearningSetFilePath, 
+                parser.TestingSetFilePath, 
+                parser.LogFilePath, 
+                parser.InertiaValue, 
+                parser.Problem, 
+                neuralNetwork)
+        {
+        }
 
-        public NeuralNetwork(string learningPath, string testingPath, string logOutputPath, double inertiaValue, CommandLineParser.ProblemType problem, BasicNetwork neuralNetwork)
+        public NeuralNetwork(
+            string learningPath, 
+            string testingPath, 
+            string logOutputPath, 
+            double momentumValue, 
+            CommandLineParser.ProblemType problem, 
+            BasicNetwork neuralNetwork)
         {
             this.testingPath = testingPath ?? learningPath;
             this.learningPath = learningPath;
             this.logOutputPath = logOutputPath;
-            this.inertia = inertiaValue;
+            this.momentum = momentumValue;
             this.rng = new Random(RandomnessSeed);
             this.problemType = problem;
             this.neuralNetwork = neuralNetwork;
@@ -76,7 +104,7 @@
             // class.  After you train, you can save the NormalizationHelper to later
             // normalize and denormalize your data.
             var csvLearningDataSource = new CSVDataSource(this.learningPath, true, CSVFormat.DecimalPoint);
-            VersatileMLDataSet dataSet = problemType == CommandLineParser.ProblemType.Regression
+            VersatileMLDataSet dataSet = this.problemType == CommandLineParser.ProblemType.Regression
                                              ? PrepareRegressionDataSet(csvLearningDataSource)
                                              : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
@@ -107,12 +135,15 @@
             // Choose whatever is the default training type for this model.
             trainingModel.SelectTrainingType(dataSet);
 
-            BasicNetwork network = CreateNetwork(this.rng, problemType == CommandLineParser.ProblemType.Regression);
+            BasicNetwork network = neuralNetwork
+                                   ?? CreateNetwork(
+                                       this.rng,
+                                       this.problemType == CommandLineParser.ProblemType.Regression);
 
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
 
-            var backpropagation = new Backpropagation(network, dataSet, 0.00003, 0.001);
+            var backpropagation = new Backpropagation(network, dataSet, 0.00003, momentum);
             backpropagation.BatchSize = 1; // Online
             const int IterationCount = 1000;
             for (int i = 0; i < IterationCount; i++)
@@ -384,7 +415,9 @@
 
         private double CalcError(BasicNetwork method, MatrixMLDataSet data)
         {
-            return problemType == CommandLineParser.ProblemType.Regression ? RegressionError(method, data) : ClassificationError(method, data);
+            return this.problemType == CommandLineParser.ProblemType.Regression
+                       ? RegressionError(method, data)
+                       : ClassificationError(method, data);
         }
 
         private void DrawPicture(
@@ -395,7 +428,7 @@
             int resolutionX, 
             int resolutionY)
         {
-            if (problemType == CommandLineParser.ProblemType.Regression)
+            if (this.problemType == CommandLineParser.ProblemType.Regression)
             {
                 PictureGenerator.DrawGraph(path, testFunction, points, helper, resolutionX, resolutionY);
             }
@@ -411,7 +444,7 @@
             IMLRegression usedMethod, 
             ICollection<ClassifiedPoint> results)
         {
-            if (problemType == CommandLineParser.ProblemType.Regression)
+            if (this.problemType == CommandLineParser.ProblemType.Regression)
             {
                 TestRegressionData(testedPath, helper, usedMethod, results);
             }

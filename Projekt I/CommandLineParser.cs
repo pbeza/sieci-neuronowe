@@ -12,7 +12,7 @@ namespace sieci_neuronowe
         public const string DefaultTestingFilePath = @".\data\classification\data.test.csv";
         public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
-        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\simple_neural_network_01.txt";
+        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\simple_classification_network_01.txt";
         public const int DefaultNumberOfIterations = 1000;
         public const double DefaultInertiaValue = 0.01;
         public const double MinAllowedInertiaValue = 0.0;
