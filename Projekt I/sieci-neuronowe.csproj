@@ -61,10 +61,11 @@
     <Compile Include="NeuralNetworkFileParser.cs" />
     <Compile Include="NeuralNetwork.cs" />
     <Compile Include="CommandLineParser.cs" />
-    <Compile Include="NeuroPoint.cs" />
+    <Compile Include="ClassifiedPoint.cs" />
     <Compile Include="PictureGenerator.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RegressionPoint.cs" />
     <Compile Include="StreamStatusReportable.cs" />
   </ItemGroup>
   <ItemGroup>

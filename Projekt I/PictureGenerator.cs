@@ -32,7 +32,7 @@
         public static void DrawArea(
             string path, 
             IMLRegression testFunction, 
-            List<NeuroPoint> points, 
+            List<ClassifiedPoint> points, 
             NormalizationHelper helper, 
             int resolutionX, 
             int resolutionY)
@@ -86,7 +86,7 @@
         public static void DrawGraph(
             string path, 
             IMLRegression testFunction, 
-            List<NeuroPoint> points, 
+            List<ClassifiedPoint> points, 
             NormalizationHelper helper, 
             int resolutionX, 
             int resolutionY)
