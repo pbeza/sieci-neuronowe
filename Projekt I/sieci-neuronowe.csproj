@@ -85,7 +85,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="data\sample_neural_networks\simple_classification_network_01.txt">
+    <Content Include="data\sample_neural_networks\format_presentation_of_neural_network.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

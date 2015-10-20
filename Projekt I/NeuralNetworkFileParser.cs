@@ -9,82 +9,131 @@ using System.Text.RegularExpressions;
 
 namespace sieci_neuronowe
 {
-    public static class NeuralNetworkFileParser
+    public class NeuralNetworkFileParser
     {
         private const char TextSeparator = ' ';
         private const char CharacterStartingComment = '#';
         private const string ExceptionPostfix = "Error reading neural network file. Make sure you have correct file's format. ";
-        private const bool IsBiasSet = true;
+        private const int MinTotalNumberOfLayers = 2; // input + outplut layer (0 hidden layers)
+        private readonly IEnumerator<string> _fileContentEnumerator;
+        private readonly BasicNetwork _neuralNetwork = new BasicNetwork();
+        private readonly IList<IActivationFunction> _layersActivationFunctions = new List<IActivationFunction>();
+        private IList<int> _neuronsInLayers = new List<int>();
+        private IList<double> _layersBiases = new List<double>();
+        private string _currentLine;
+        private int _currentLineNumber;
+        private int TotalLayersNumber { get { return _neuronsInLayers.Count; } }
+        private enum ActivationFunctionsNames { sigmoid, linear, bipolar, sinus, off };
 
-        public static BasicNetwork Parse(string path)
+        public NeuralNetworkFileParser(string path)
         {
-            // Note: Below line does NOT load whole file into memory at once (which is good)
+            _fileContentEnumerator = File.ReadLines(path).GetEnumerator();
+        }
 
-            var lines = File.ReadLines(path);
-            var enumerator = lines.GetEnumerator();
+        public BasicNetwork Parse()
+        {
+            // Fetch first not empty line (which should be sequence of numbers
+            // of neurons in subsequent layers) and set number of neurons for all the layers.
 
-            // Fetch first not empty line which should be sequence of numbers of neurons in subsequent layers
+            SetListOfNeuronsInAllLayers();
 
-            var neuronsInLayers = GetListOfNeuronsNumberInLayers(enumerator);
-            var totalLayersNumber = neuronsInLayers.Count;
+            // Fetch first not empty line (which should be sequence of layers' activation names)
+            // and set: activation function for all of the layers.
 
-            // Count number of layers which is sum of: input layer + all hidden layers + output layer
-
-            if (totalLayersNumber < 3)
-            {
-                ThrowErrorFileLoadFile("At least one hidden layer expected.");
-            }
+            SetActivationFunctionsForAllLayers();
 
             // Read and save bias for every network layer
 
-            var layersBiases = GetListOfLayersBiases(enumerator);
-
-            // Check if bias was specified for every layer
-
-            if (layersBiases.Count != totalLayersNumber)
-            {
-                ThrowErrorFileLoadFile("Number of specified biases should be equal to number of all layers.");
-            }
+            SetListOfLayersBiases();
 
             // Add all layers to constructed neural network
 
-            var network = new BasicNetwork();
-            AddAllLayersToNeuralNetwork(neuronsInLayers, network);
-            network.Structure.FinalizeStructure();
+            AddAllLayersToNeuralNetwork();
 
             // Add biases to neural network
 
-            AddAllBiasesToNeuralNetwork(layersBiases, network);
+            AddAllBiasesToNeuralNetwork();
 
             // Add all weights to constructed neural network
 
-            return AddAllWeightsToConstructedNeuralNetwork(enumerator, neuronsInLayers, network);
+            return AddAllWeightsToConstructedNeuralNetwork();
         }
 
-        private static BasicNetwork AddAllWeightsToConstructedNeuralNetwork(IEnumerator<string> enumerator,
-                                                                            IList<int> neuronsInLayers,
-                                                                            BasicNetwork network)
+        private void SetListOfNeuronsInAllLayers()
+        {
+            SetFirstNotIgnoredLineAsCurrentLine("File is empty.");
+            SetNeuronsInAllLayersFromCurrentLine();
+            if (TotalLayersNumber < MinTotalNumberOfLayers)
+            {
+                ThrowErrorFileLoadFile("Minimal number of layers is " + MinTotalNumberOfLayers + " (specified " + TotalLayersNumber + " layer(s)).");
+            }
+        }
+
+        private void SetNeuronsInAllLayersFromCurrentLine()
+        {
+            _neuronsInLayers = Array.ConvertAll(_currentLine.Split(TextSeparator), int.Parse);
+            foreach (var neuronsInLayer in _neuronsInLayers.Where(neuronsInLayer => neuronsInLayer <= 0))
+            {
+                ThrowErrorFileLoadFile("One of the specified layers has got NOT positive number of neurons.");
+            }
+        }
+
+        private void SetActivationFunctionsForAllLayers()
+        {
+            SetFirstNotIgnoredLineAsCurrentLine("Unexpected end of file. List of activation functions' names expected.");
+            SetActivationFunctionsForAllLayersFromLine();
+        }
+
+        private void SetActivationFunctionsForAllLayersFromLine()
+        {
+            var splitted = _currentLine.Split();
+            if (splitted.Length != TotalLayersNumber)
+            {
+                var msg = string.Format("Number of all layers is {0} and number of activation functions' names is {1}. They must be equal.", TotalLayersNumber, TotalLayersNumber);
+                ThrowErrorFileLoadFile(msg);
+            }
+            foreach (var activationFunctionName in splitted)
+            {
+                _layersActivationFunctions.Add(CreateActivationFunctionFromString(activationFunctionName));
+            }
+        }
+
+        private void SetListOfLayersBiases()
+        {
+            SetFirstNotIgnoredLineAsCurrentLine("Unexpected end of file. File does NOT specify layers' biases.");
+            SetBiasesForEveryNetworkLayerFromCurrentLine();
+        }
+
+        private void SetBiasesForEveryNetworkLayerFromCurrentLine()
+        {
+            _layersBiases = Array.ConvertAll(_currentLine.Split(TextSeparator), double.Parse);
+            if (_layersBiases.Count != TotalLayersNumber)
+            {
+                var msg = string.Format("Number of specified biases is {0}. It should be equal to number of all of the layers which is {1}.", _layersBiases.Count, TotalLayersNumber);
+                ThrowErrorFileLoadFile(msg);
+            }
+        }
+
+        private BasicNetwork AddAllWeightsToConstructedNeuralNetwork()
         {
             int processedLayers = 0, // layer no. 0 is input layer
                 processedNeuronsWithinLayer = 0,
                 processedNotIgnoredLines = 0,
-                totalNumberOfLayers = neuronsInLayers.Count,
-                numberOfNeuronsInCurrentLayer = neuronsInLayers[processedLayers],
-                numberOfNeuronsInNextLayer = neuronsInLayers[processedLayers + 1];
+                numberOfNeuronsInCurrentLayer = _neuronsInLayers[processedLayers],
+                numberOfNeuronsInNextLayer = _neuronsInLayers[processedLayers + 1];
 
             while (true)
             {
-                var currentLine = GetFirstNotIgnoredLine(enumerator);
-                if (currentLine == null)
+                SetFirstNotIgnoredLineAsCurrentLine();
+                if (_currentLine == null)
                     break; // EOF
                 processedNotIgnoredLines++;
-                if (processedLayers >= totalNumberOfLayers - 1)
+                if (processedLayers >= TotalLayersNumber - 1)
                 {
-                    var msg = string.Format("Too many neural layers. Number of processed layers is {0}. Declared number of layers is {1}.",
-                                            processedLayers, totalNumberOfLayers);
+                    var msg = string.Format("Too many neural layers. Number of processed layers is {0}. Declared number of layers is {1}.", processedLayers, TotalLayersNumber);
                     ThrowErrorFileLoadFile(msg);
                 }
-                var weightsForOneVertex = GetWeightsFromLine(currentLine);
+                var weightsForOneVertex = GetWeightsFromCurrentLine();
                 if (weightsForOneVertex.Length != numberOfNeuronsInNextLayer)
                 {
                     var msg = string.Format("Number of weights for layer no. {0} should equal {1} (is {2}).",
@@ -93,87 +142,80 @@ namespace sieci_neuronowe
                 }
                 for (var toNeuronNumber = 0; toNeuronNumber < numberOfNeuronsInNextLayer; toNeuronNumber++)
                 {
-                    network.AddWeight(processedLayers, processedNeuronsWithinLayer, toNeuronNumber, weightsForOneVertex[toNeuronNumber]);
+                    _neuralNetwork.AddWeight(processedLayers, processedNeuronsWithinLayer, toNeuronNumber, weightsForOneVertex[toNeuronNumber]);
                 }
                 if (++processedNeuronsWithinLayer != numberOfNeuronsInCurrentLayer) continue;
-                if (++processedLayers == totalNumberOfLayers - 1)
+                if (++processedLayers == TotalLayersNumber - 1)
                     break;
                 processedNeuronsWithinLayer = 0;
-                numberOfNeuronsInCurrentLayer = neuronsInLayers[processedLayers];
-                numberOfNeuronsInNextLayer = neuronsInLayers[processedLayers + 1];
+                numberOfNeuronsInCurrentLayer = _neuronsInLayers[processedLayers];
+                numberOfNeuronsInNextLayer = _neuronsInLayers[processedLayers + 1];
             }
 
             // Check if file ended too early
 
-            if (processedNotIgnoredLines != GetTotalNumberOfExpectedNotIgnoredLines(neuronsInLayers) || processedLayers != totalNumberOfLayers - 1)
+            if (processedNotIgnoredLines != GetTotalNumberOfExpectedNotIgnoredLines() || processedLayers != TotalLayersNumber - 1)
                 ThrowErrorFileLoadFile("Unexpected end of file. Wrong file format.");
 
-            return network;
+            return _neuralNetwork;
         }
 
-        private static void AddAllLayersToNeuralNetwork(IList<int> neuronsInLayers, BasicNetwork network)
+        private void AddAllLayersToNeuralNetwork()
         {
-            network.AddLayer(new BasicLayer(new ActivationLinear(), IsBiasSet, neuronsInLayers.First()));
-            for (var i = 1; i < neuronsInLayers.Count - 1; i++)
+            const bool isBiasSet = true; // TODO
+            _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions.First(), isBiasSet, _neuronsInLayers.First()));
+            for (var i = 1; i < _neuronsInLayers.Count - 1; i++)
             {
-                network.AddLayer(new BasicLayer(new ActivationSigmoid(), IsBiasSet, neuronsInLayers[i]));
+                _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions[i], isBiasSet, _neuronsInLayers[i]));
             }
-            network.AddLayer(new BasicLayer(new ActivationLinear(), IsBiasSet, neuronsInLayers.Last()));
+            _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions.Last(), isBiasSet, _neuronsInLayers.Last()));
+            _neuralNetwork.Structure.FinalizeStructure();
         }
 
-        private static void AddAllBiasesToNeuralNetwork(IList<double> layersBiases, BasicNetwork network)
+        private void AddAllBiasesToNeuralNetwork()
         {
-            for (var i = 0; i < layersBiases.Count; i++)
+            for (var i = 0; i < _layersBiases.Count; i++)
             {
-                network.SetLayerBiasActivation(i, layersBiases[i]);
+                _neuralNetwork.SetLayerBiasActivation(i, _layersBiases[i]);
             }
         }
 
-        private static IList<int> GetListOfNeuronsNumberInLayers(IEnumerator<string> enumerator)
-        {
-            var currentLine = GetFirstNotIgnoredLine(enumerator);
-            if (currentLine == null)
-            {
-                ThrowErrorFileLoadFile("File is empty.");
-            }
-            return GetNeuronsInLayersFromLine(currentLine);
-        }
-
-        private static IList<double> GetListOfLayersBiases(IEnumerator<string> enumerator)
-        {
-            var currentLine = GetFirstNotIgnoredLine(enumerator);
-            if (currentLine == null)
-            {
-                ThrowErrorFileLoadFile("File does NOT specify layers' biases.");
-            }
-            return GetBiasesForEveryNetworkLayerFromLine(currentLine);
-        }
-
-        private static int GetTotalNumberOfExpectedNotIgnoredLines(IList<int> neuronsInLayers)
+        private int GetTotalNumberOfExpectedNotIgnoredLines()
         {
             var totalNumberOfWeights = 0;
-            for (var i = 0; i < neuronsInLayers.Count - 1; i++)
+            for (var i = 0; i < _neuronsInLayers.Count - 1; i++)
             {
-                totalNumberOfWeights += neuronsInLayers[i];
+                totalNumberOfWeights += _neuronsInLayers[i];
             }
             return totalNumberOfWeights;
         }
 
-        private static string GetFirstNotIgnoredLine(IEnumerator<string> enumerator)
+        private double[] GetWeightsFromCurrentLine()
         {
-            string firstNotIgnoredLine = null;
-            while (enumerator.MoveNext())
+            var weights = Array.ConvertAll(_currentLine.Split(TextSeparator), double.Parse);
+            foreach (var weight in weights.Where(weight => weight < 0))
             {
-                var tmp = RemoveIgnoredSubstrings(enumerator.Current);
-                if (tmp == string.Empty) continue;
-                if (tmp != null)
-                    firstNotIgnoredLine = tmp;
-                break;
+                ThrowErrorFileLoadFile("Negative neuron's weight detected.");
             }
-            return firstNotIgnoredLine;
+            return weights;
         }
 
-        private static string RemoveIgnoredSubstrings(string line)
+        private void SetFirstNotIgnoredLineAsCurrentLine(string msgIfNoMoreLines = null)
+        {
+            while (_fileContentEnumerator.MoveNext())
+            {
+                _currentLineNumber++;
+                _currentLine = RemoveIgnoredSubstringsFromString(_fileContentEnumerator.Current);
+                if (_currentLine != string.Empty)
+                    break;
+            }
+            if (msgIfNoMoreLines != null && _currentLine == null)
+            {
+                ThrowErrorFileLoadFile(msgIfNoMoreLines);
+            }
+        }
+
+        private static string RemoveIgnoredSubstringsFromString(string line)
         {
             var index = line.IndexOf(CharacterStartingComment);
             if (index != -1)
@@ -182,39 +224,34 @@ namespace sieci_neuronowe
             return Regex.Replace(line, @"\s+", " ");
         }
 
-        private static int[] GetNeuronsInLayersFromLine(string line)
-        {
-            var neuronsInLayers = Array.ConvertAll(line.Split(TextSeparator), int.Parse);
-            foreach (var neuronsInLayer in neuronsInLayers.Where(neuronsInLayer => neuronsInLayer <= 0))
-            {
-                ThrowErrorFileLoadFile("One of the specified layers not positive number of neurons.");
-            }
-            return neuronsInLayers;
-        }
-
-        private static double[] GetBiasesForEveryNetworkLayerFromLine(string line)
-        {
-            var biases = Array.ConvertAll(line.Split(TextSeparator), double.Parse);
-            foreach (var bias in biases.Where(bias => bias < 0))
-            {
-                ThrowErrorFileLoadFile("Negative layer's bias detected.");
-            }
-            return biases;
-        }
-
-        private static double[] GetWeightsFromLine(string line)
-        {
-            var weights = Array.ConvertAll(line.Split(TextSeparator), double.Parse);
-            foreach (var weight in weights.Where(weight => weight < 0))
-            {
-                ThrowErrorFileLoadFile("Negative neuron's weight detected.");
-            }
-            return weights;
-        }
-
-        private static void ThrowErrorFileLoadFile(string errorMsg)
+        private void ThrowErrorFileLoadFile(string errorMsg)
         {
             throw new FileLoadException(ExceptionPostfix + errorMsg);
+        }
+
+        private IActivationFunction CreateActivationFunctionFromString(string activationFunctionName)
+        {
+            ActivationFunctionsNames parsedEnum;
+            if (!Enum.TryParse(activationFunctionName, out parsedEnum))
+            {
+                var msg = string.Format("Unrecognized activation function: '{0}'.", activationFunctionName);
+                ThrowErrorFileLoadFile(msg);
+            }
+            switch (parsedEnum)
+            {
+                case ActivationFunctionsNames.bipolar:
+                    return new ActivationBiPolar();
+                case ActivationFunctionsNames.linear:
+                    return new ActivationLinear();
+                case ActivationFunctionsNames.sigmoid:
+                    return new ActivationSigmoid();
+                case ActivationFunctionsNames.sinus:
+                    return new ActivationSIN();
+                case ActivationFunctionsNames.off:
+                    return null;
+                default:
+                    throw new NotImplementedException();
+            }
         }
     }
 }

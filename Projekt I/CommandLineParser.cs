@@ -12,7 +12,7 @@ namespace sieci_neuronowe
         public const string DefaultTestingFilePath = @".\data\classification\data.test.csv";
         public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
-        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\simple_classification_network_01.txt";
+        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_presentation_of_neural_network.txt";
         public const int DefaultNumberOfIterations = 10000;
         public const double DefaultMomentumValue = 0.01;
         public const double MinAllowedInertiaValue = 0.0;
@@ -209,6 +209,8 @@ namespace sieci_neuronowe
             {
                 MessageForUser = "Neither classification nor regression flag was set.";
             }
+
+            Problem = classification ? ProblemType.Classification : ProblemType.Regression;
 
             SetParserState();
         }

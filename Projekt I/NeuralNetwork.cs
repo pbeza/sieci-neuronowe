@@ -29,7 +29,7 @@ namespace sieci_neuronowe
         private const string VerificationErrorDataPath = @".\verification_error_data.txt";
         private const int RandomnessSeed = 1001;
         private const double ValidationPercent = 0.3;
-        private const double LearnRate = 0.00003;
+        private const double LearnRate = 0.0003;
         private const int BackpropagationBatchSize = 1;
         private const int ImageResolutionX = 1024;
         private const int ImageResolutionY = 1024;
@@ -52,7 +52,6 @@ namespace sieci_neuronowe
             this.neuralNetwork = neuralNetwork;
         }
 
-
         public void Run()
         {
             // Loop over the entire, original, dataset and feed it through the model.
@@ -62,8 +61,8 @@ namespace sieci_neuronowe
             // normalize and denormalize your data.
 
             var csvLearningDataSource = new CSVDataSource(learningPath, true, CSVFormat.DecimalPoint);
-            var problemType1 = parser.Problem;
-            var dataSet = problemType1 == CommandLineParser.ProblemType.Regression
+            var problemType = parser.Problem;
+            var dataSet = problemType == CommandLineParser.ProblemType.Regression
                           ? PrepareRegressionDataSet(csvLearningDataSource)
                           : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
@@ -97,7 +96,7 @@ namespace sieci_neuronowe
 
             trainingModel.SelectTrainingType(dataSet);
 
-            var network = neuralNetwork ?? CreateNetwork(rng, problemType1 == CommandLineParser.ProblemType.Regression);
+            var network = neuralNetwork ?? CreateNetwork(rng, problemType == CommandLineParser.ProblemType.Regression);
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
             var backpropagation = new Backpropagation(network, dataSet, LearnRate, parser.Momentum) { BatchSize = BackpropagationBatchSize };
