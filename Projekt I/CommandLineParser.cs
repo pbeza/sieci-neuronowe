@@ -13,8 +13,8 @@ namespace sieci_neuronowe
         public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
         public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\simple_classification_network_01.txt";
-        public const int DefaultNumberOfIterations = 1000;
-        public const double DefaultInertiaValue = 0.01;
+        public const int DefaultNumberOfIterations = 10000;
+        public const double DefaultMomentumValue = 0.01;
         public const double MinAllowedInertiaValue = 0.0;
         public const double MaxAllowedInertiaValue = 1.0;
         public static readonly string[] DefaultArgs =
@@ -48,7 +48,7 @@ namespace sieci_neuronowe
         public string LogFilePath { get; private set; }
         public string NeuralNetworkDefinitionFilePath { get; private set; }
         public int NumberOfIterations { get; private set; }
-        public double InertiaValue { get; private set; }
+        public double Momentum { get; private set; }
         public string MessageForUser { get; private set; }
 
         public CommandLineParser(IEnumerable<string> args)
@@ -61,7 +61,7 @@ namespace sieci_neuronowe
             LogFilePath = string.Empty;
             NeuralNetworkDefinitionFilePath = string.Empty;
             NumberOfIterations = DefaultNumberOfIterations;
-            InertiaValue = DefaultInertiaValue;
+            Momentum = DefaultMomentumValue;
             MessageForUser = string.Empty;
             Parse(args);
         }
@@ -104,7 +104,7 @@ namespace sieci_neuronowe
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} VAL", ShortInertiaValueOption, LongInertiaValueOption);
             Console.WriteLine("          Inertia value used for learning process. VAL must be from range [{0}; {1}].", MinAllowedInertiaValue, MaxAllowedInertiaValue);
-            Console.WriteLine("          If not specified, default inertia value VAL={0} is assigned.", DefaultInertiaValue);
+            Console.WriteLine("          If not specified, default inertia value VAL={0} is assigned.", DefaultMomentumValue);
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} PATH", ShortLogPathOption, LongLogPathOption);
             Console.WriteLine("          Path to log text file which will be created.");
@@ -125,7 +125,7 @@ namespace sieci_neuronowe
                 { ShortRegressionOption + "|" + LongRegressionOption, "Choose regression problem.", v => { if (v != null) regression = true; } },
                 { ShortTestingPathOption + "|" + LongTestingPathOption + "=", "Path to testing CSV.", v => TestingSetFilePath = v },
                 { ShortIterationsOption + "|" + LongIterationsOption + "=", "Number of iterations.", (int v) => NumberOfIterations = v },
-                { ShortInertiaValueOption + "|" + LongInertiaValueOption + "=", "Inertia value for learning process.", (double v) => InertiaValue = v },
+                { ShortInertiaValueOption + "|" + LongInertiaValueOption + "=", "Inertia value for learning process.", (double v) => Momentum = v },
                 { ShortLogPathOption + "|" + LongLogPathOption + "=", "Path to log text file for debugging purposes.", v => LogFilePath = v }
             };
 
@@ -156,7 +156,7 @@ namespace sieci_neuronowe
             {
                 MessageForUser = "Number of iterations must be positive number";
             }
-            else if (InertiaValue < MinAllowedInertiaValue || InertiaValue > MaxAllowedInertiaValue)
+            else if (Momentum < MinAllowedInertiaValue || Momentum > MaxAllowedInertiaValue)
             {
                 MessageForUser = string.Format("Inertia value must be from range [{0}; {1}].", MinAllowedInertiaValue, MaxAllowedInertiaValue);
             }

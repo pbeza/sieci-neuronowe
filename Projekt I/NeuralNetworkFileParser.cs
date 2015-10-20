@@ -111,12 +111,14 @@ namespace sieci_neuronowe
             return network;
         }
 
-        private static void AddAllLayersToNeuralNetwork(IEnumerable<int> neuronsInLayers, BasicNetwork network)
+        private static void AddAllLayersToNeuralNetwork(IList<int> neuronsInLayers, BasicNetwork network)
         {
-            foreach (var neuronsInLayer in neuronsInLayers)
+            network.AddLayer(new BasicLayer(new ActivationLinear(), IsBiasSet, neuronsInLayers.First()));
+            for (var i = 1; i < neuronsInLayers.Count - 1; i++)
             {
-                network.AddLayer(new BasicLayer(new ActivationSigmoid(), IsBiasSet, neuronsInLayer));
+                network.AddLayer(new BasicLayer(new ActivationSigmoid(), IsBiasSet, neuronsInLayers[i]));
             }
+            network.AddLayer(new BasicLayer(new ActivationLinear(), IsBiasSet, neuronsInLayers.Last()));
         }
 
         private static void AddAllBiasesToNeuralNetwork(IList<double> layersBiases, BasicNetwork network)

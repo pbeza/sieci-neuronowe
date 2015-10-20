@@ -34,45 +34,24 @@ namespace sieci_neuronowe
         private const int ImageResolutionX = 1024;
         private const int ImageResolutionY = 1024;
         private const bool IfShuffle = true;
-        private readonly int iterationsNumber;
-        private readonly double momentum;
         private readonly string learningPath;
         private readonly string logOutputPath;
         private readonly BasicNetwork neuralNetwork;
-        private readonly CommandLineParser.ProblemType problemType;
         private readonly string testingPath;
-        private readonly Random randomnessSeed;
+        private readonly Random rng;
+        private readonly CommandLineParser parser;
 
-        public NeuralNetwork(CommandLineParser parser, BasicNetwork neuralNetwork)
-            : this(
-                parser.LearningSetFilePath,
-                parser.TestingSetFilePath,
-                parser.LogFilePath,
-                parser.NumberOfIterations,
-                parser.InertiaValue,
-                parser.Problem,
-                neuralNetwork)
+        public NeuralNetwork(CommandLineParser inParser, BasicNetwork neuralNetwork)
         {
-        }
+            this.parser = inParser;
 
-        public NeuralNetwork(
-            string learningPath,
-            string testingPath,
-            string logOutputPath,
-            int iterationsNumber,
-            double momentum,
-            CommandLineParser.ProblemType problemType,
-            BasicNetwork neuralNetwork)
-        {
-            this.testingPath = testingPath ?? learningPath;
-            this.learningPath = learningPath;
-            this.logOutputPath = logOutputPath;
-            this.iterationsNumber = iterationsNumber;
-            this.momentum = momentum;
-            this.randomnessSeed = new Random(RandomnessSeed);
-            this.problemType = problemType;
+            this.testingPath = parser.TestingSetFilePath ?? parser.LearningSetFilePath;
+            this.learningPath = parser.LearningSetFilePath;
+            this.logOutputPath = parser.LogFilePath;
+            this.rng = new Random(RandomnessSeed);
             this.neuralNetwork = neuralNetwork;
         }
+
 
         public void Run()
         {
@@ -83,7 +62,8 @@ namespace sieci_neuronowe
             // normalize and denormalize your data.
 
             var csvLearningDataSource = new CSVDataSource(learningPath, true, CSVFormat.DecimalPoint);
-            var dataSet = problemType == CommandLineParser.ProblemType.Regression
+            var problemType1 = parser.Problem;
+            var dataSet = problemType1 == CommandLineParser.ProblemType.Regression
                           ? PrepareRegressionDataSet(csvLearningDataSource)
                           : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
@@ -117,12 +97,13 @@ namespace sieci_neuronowe
 
             trainingModel.SelectTrainingType(dataSet);
 
-            var network = neuralNetwork ?? CreateNetwork(randomnessSeed, problemType == CommandLineParser.ProblemType.Regression);
+            var network = neuralNetwork ?? CreateNetwork(rng, problemType1 == CommandLineParser.ProblemType.Regression);
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
-            var backpropagation = new Backpropagation(network, dataSet, LearnRate, momentum) { BatchSize = BackpropagationBatchSize };
+            var backpropagation = new Backpropagation(network, dataSet, LearnRate, parser.Momentum) { BatchSize = BackpropagationBatchSize };
 
-            for (var i = 0; i < iterationsNumber; i++)
+            var iterationsNumber1 = parser.NumberOfIterations;
+            for (var i = 0; i < iterationsNumber1; i++)
             {
                 backpropagation.Iteration();
                 if (i % 100 == 0)
@@ -131,14 +112,14 @@ namespace sieci_neuronowe
                     verificationErrorWriter.WriteLine(CalcError(network, trainingModel.ValidationDataset));
                 }
 
-                if (i % (iterationsNumber / 10) != 0)
+                if (i % (iterationsNumber1 / 10) != 0)
                 {
                     continue;
                 }
 
                 var err = backpropagation.Error;
                 writetext.WriteLine("Backpropagation error: " + err);
-                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, err);
+                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber1, err);
             }
 
             trainingErrorWriter.Close();
@@ -184,19 +165,25 @@ namespace sieci_neuronowe
             var total = 0;
             foreach (var pair in data)
             {
+                bool thisCorrect = true;
                 var computed = method.Classify(pair.Input);
                 for (var i = 0; i < pair.Ideal.Count; i++)
                 {
                     if (computed == i && pair.Ideal[i] < 0.99999)
                     {
+                        thisCorrect = false;
                         break;
                     }
 
-                    if (pair.Ideal[i] > 0.99999)
+                    if (computed != i && pair.Ideal[i] > -0.99999)
                     {
+                        thisCorrect = false;
                         break;
                     }
+                }
 
+                if (thisCorrect)
+                {
                     correct++;
                 }
 
@@ -385,7 +372,7 @@ namespace sieci_neuronowe
 
         private double CalcError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
-            return problemType == CommandLineParser.ProblemType.Regression
+            return parser.Problem == CommandLineParser.ProblemType.Regression
                        ? RegressionError(method, data)
                        : ClassificationError(method, data);
         }
@@ -398,7 +385,7 @@ namespace sieci_neuronowe
             int resolutionX,
             int resolutionY)
         {
-            if (problemType == CommandLineParser.ProblemType.Regression)
+            if (parser.Problem == CommandLineParser.ProblemType.Regression)
             {
                 PictureGenerator.DrawGraph(path, testFunction, points, helper, resolutionX, resolutionY);
             }
@@ -414,7 +401,7 @@ namespace sieci_neuronowe
             IMLRegression usedMethod,
             ICollection<ClassifiedPoint> results)
         {
-            if (problemType == CommandLineParser.ProblemType.Regression)
+            if (parser.Problem == CommandLineParser.ProblemType.Regression)
             {
                 TestRegressionData(testedPath, helper, usedMethod, results);
             }
