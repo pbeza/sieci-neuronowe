@@ -72,9 +72,9 @@ namespace sieci_neuronowe
         private void SetNeuronsInAllLayersFromCurrentLine()
         {
             _neuronsInLayers = Array.ConvertAll(_currentLine.Split(TextSeparator), int.Parse);
-            foreach (var neuronsInLayer in _neuronsInLayers.Where(neuronsInLayer => neuronsInLayer <= 0))
+            if (_neuronsInLayers.Any(neuronsInLayer => neuronsInLayer <= 0))
             {
-                ThrowErrorFileLoadFile("One of the specified layers has got NOT positive number of neurons.");
+                ThrowErrorFileLoadFile("One of the specified layers has less than 1 neuron.");
             }
         }
 
@@ -193,10 +193,6 @@ namespace sieci_neuronowe
         private double[] GetWeightsFromCurrentLine()
         {
             var weights = Array.ConvertAll(_currentLine.Split(TextSeparator), double.Parse);
-            foreach (var weight in weights.Where(weight => weight < 0))
-            {
-                ThrowErrorFileLoadFile("Negative neuron's weight detected.");
-            }
             return weights;
         }
 
