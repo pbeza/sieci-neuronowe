@@ -13,7 +13,7 @@ namespace sieci_neuronowe
         public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
         public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_presentation_of_neural_network.txt";
-        public const int DefaultNumberOfIterations = 10000;
+        public const int DefaultNumberOfIterations = 1000;
         public const double DefaultMomentumValue = 0.01;
         public const double MinAllowedMomentumValue = 0.0;
         public const double MaxAllowedMomentumValue = 1.0;
@@ -38,7 +38,7 @@ namespace sieci_neuronowe
                             LongTestingPathOption = "testing",
                             LongLogPathOption = "log",
                             LongIterationsOption = "iterations",
-                            LongMomentumValueOption = "inertia";
+                            LongMomentumValueOption = "momentum";
         private const int NumberOfExpectedUnrecognizedOptions = 2;
         public ProblemType Problem { get; private set; }
         public bool InputValid { get; private set; }
@@ -104,7 +104,7 @@ namespace sieci_neuronowe
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} VAL", ShortMomentumValueOption, LongMomentumValueOption);
             Console.WriteLine("          Momentum value used for learning process. VAL must be from range [{0}; {1}].", MinAllowedMomentumValue, MaxAllowedMomentumValue);
-            Console.WriteLine("          If not specified, default inertia value VAL={0} is assigned.", DefaultMomentumValue);
+            Console.WriteLine("          If not specified, default momentum value VAL={0} is assigned.", DefaultMomentumValue);
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} PATH", ShortLogPathOption, LongLogPathOption);
             Console.WriteLine("          Path to log text file which will be created.");
