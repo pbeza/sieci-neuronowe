@@ -23,7 +23,19 @@ namespace sieci_neuronowe
         private string _currentLine;
         private int _currentLineNumber;
         private int TotalLayersNumber { get { return _neuronsInLayers.Count; } }
-        private enum ActivationFunctionsNames { sigmoid, linear, bipolar, sinus, off };
+
+        private enum ActivationFunctionsNames
+        {
+            sigmoid,
+            linear,
+            bipolar,
+            sin,
+            tanh,
+            elliott,
+            elliott_sym,
+            gaussian,
+            bipolar_sigmoid
+        };
 
         public NeuralNetworkFileParser(string path)
         {
@@ -241,13 +253,21 @@ namespace sieci_neuronowe
                     return new ActivationLinear();
                 case ActivationFunctionsNames.sigmoid:
                     return new ActivationSigmoid();
-                case ActivationFunctionsNames.sinus:
+                case ActivationFunctionsNames.sin:
                     return new ActivationSIN();
-                case ActivationFunctionsNames.off:
-                    return null;
-                default:
-                    throw new NotImplementedException();
+                case ActivationFunctionsNames.tanh:
+                    return new ActivationTANH();
+                case ActivationFunctionsNames.elliott:
+                    return new ActivationElliott();
+                case ActivationFunctionsNames.elliott_sym:
+                    return new ActivationElliottSymmetric();
+                case ActivationFunctionsNames.gaussian:
+                    return new ActivationGaussian();
+                case ActivationFunctionsNames.bipolar_sigmoid:
+                    return new ActivationBipolarSteepenedSigmoid();
             }
+
+            throw new NotImplementedException();
         }
     }
 }
