@@ -31,7 +31,7 @@ namespace sieci_neuronowe
                             ShortTestingPathOption = "t",
                             ShortLogPathOption = "l",
                             ShortIterationsOption = "n",
-                            ShortMomentumValueOption = "i",
+                            ShortMomentumValueOption = "l",
                             LongHelpOption = "help",
                             LongClassificationOption = "classification",
                             LongRegressionOption = "regression",
