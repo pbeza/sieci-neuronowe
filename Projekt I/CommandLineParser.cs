@@ -15,8 +15,8 @@ namespace sieci_neuronowe
         public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_presentation_of_neural_network.txt";
         public const int DefaultNumberOfIterations = 10000;
         public const double DefaultMomentumValue = 0.01;
-        public const double MinAllowedInertiaValue = 0.0;
-        public const double MaxAllowedInertiaValue = 1.0;
+        public const double MinAllowedMomentumValue = 0.0;
+        public const double MaxAllowedMomentumValue = 1.0;
         public static readonly string[] DefaultArgs =
         {
             "-" + ShortClassificationOption,
@@ -31,14 +31,14 @@ namespace sieci_neuronowe
                             ShortTestingPathOption = "t",
                             ShortLogPathOption = "l",
                             ShortIterationsOption = "n",
-                            ShortInertiaValueOption = "i",
+                            ShortMomentumValueOption = "i",
                             LongHelpOption = "help",
                             LongClassificationOption = "classification",
                             LongRegressionOption = "regression",
                             LongTestingPathOption = "testing",
                             LongLogPathOption = "log",
                             LongIterationsOption = "iterations",
-                            LongInertiaValueOption = "inertia";
+                            LongMomentumValueOption = "inertia";
         private const int NumberOfExpectedUnrecognizedOptions = 2;
         public ProblemType Problem { get; private set; }
         public bool InputValid { get; private set; }
@@ -102,8 +102,8 @@ namespace sieci_neuronowe
             Console.WriteLine("          Number of iterations for learning process.");
             Console.WriteLine("          If not specified, default number N={0} is assigned.", DefaultNumberOfIterations);
             Console.WriteLine();
-            Console.WriteLine("    -{0}, --{1} VAL", ShortInertiaValueOption, LongInertiaValueOption);
-            Console.WriteLine("          Inertia value used for learning process. VAL must be from range [{0}; {1}].", MinAllowedInertiaValue, MaxAllowedInertiaValue);
+            Console.WriteLine("    -{0}, --{1} VAL", ShortMomentumValueOption, LongMomentumValueOption);
+            Console.WriteLine("          Momentum value used for learning process. VAL must be from range [{0}; {1}].", MinAllowedMomentumValue, MaxAllowedMomentumValue);
             Console.WriteLine("          If not specified, default inertia value VAL={0} is assigned.", DefaultMomentumValue);
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} PATH", ShortLogPathOption, LongLogPathOption);
@@ -125,7 +125,7 @@ namespace sieci_neuronowe
                 { ShortRegressionOption + "|" + LongRegressionOption, "Choose regression problem.", v => { if (v != null) regression = true; } },
                 { ShortTestingPathOption + "|" + LongTestingPathOption + "=", "Path to testing CSV.", v => TestingSetFilePath = v },
                 { ShortIterationsOption + "|" + LongIterationsOption + "=", "Number of iterations.", (int v) => NumberOfIterations = v },
-                { ShortInertiaValueOption + "|" + LongInertiaValueOption + "=", "Inertia value for learning process.", (double v) => Momentum = v },
+                { ShortMomentumValueOption + "|" + LongMomentumValueOption + "=", "Momentum value for learning process.", (double v) => Momentum = v },
                 { ShortLogPathOption + "|" + LongLogPathOption + "=", "Path to log text file for debugging purposes.", v => LogFilePath = v }
             };
 
@@ -156,9 +156,9 @@ namespace sieci_neuronowe
             {
                 MessageForUser = "Number of iterations must be positive number";
             }
-            else if (Momentum < MinAllowedInertiaValue || Momentum > MaxAllowedInertiaValue)
+            else if (Momentum < MinAllowedMomentumValue || Momentum > MaxAllowedMomentumValue)
             {
-                MessageForUser = string.Format("Inertia value must be from range [{0}; {1}].", MinAllowedInertiaValue, MaxAllowedInertiaValue);
+                MessageForUser = string.Format("Momentum value must be from range [{0}; {1}].", MinAllowedMomentumValue, MaxAllowedMomentumValue);
             }
             else if (!File.Exists(LearningSetFilePath = unrecognizedOptions[0]))
             {
