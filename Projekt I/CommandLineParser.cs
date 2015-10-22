@@ -8,11 +8,11 @@ namespace sieci_neuronowe
     public class CommandLineParser
     {
         public const string DefaultLogFilePath = @".\out.txt";
-        public const string DefaultLearningFilePath = @".\data\classification\data.train.csv";
-        public const string DefaultTestingFilePath = @".\data\classification\data.test.csv";
+        public const string DefaultClassificationLearningFilePath = @".\data\classification\data.train.csv";
+        public const string DefaultClassificationTestingFilePath = @".\data\classification\data.test.csv";
         public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
-        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_presentation_of_neural_network.txt";
+        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_of_neural_network.txt";
         public const int DefaultNumberOfIterations = 1000;
         public const double DefaultMomentumValue = 0.01;
         public const double MinAllowedMomentumValue = 0.0;
@@ -20,8 +20,8 @@ namespace sieci_neuronowe
         public static readonly string[] DefaultArgs =
         {
             "-" + ShortClassificationOption,
-            "-" + ShortTestingPathOption, DefaultTestingFilePath,
-            DefaultLearningFilePath,
+            "-" + ShortTestingPathOption, DefaultClassificationTestingFilePath,
+            DefaultClassificationLearningFilePath,
             DefaultNeuralNetworkDefinitionFilePath
         };
         public enum ProblemType { Classification, Regression, Unspecified };
@@ -29,7 +29,7 @@ namespace sieci_neuronowe
                             ShortClassificationOption = "c",
                             ShortRegressionOption = "r",
                             ShortTestingPathOption = "t",
-                            ShortLogPathOption = "l",
+                            ShortLogPathOption = "v",
                             ShortIterationsOption = "n",
                             ShortMomentumValueOption = "l",
                             LongHelpOption = "help",
@@ -96,7 +96,7 @@ namespace sieci_neuronowe
             Console.WriteLine("    -{0}, --{1} PATH", ShortTestingPathOption, LongTestingPathOption);
             Console.WriteLine("          Path to CSV file with testing set.");
             Console.WriteLine("          If not given, testing set is the same as learning set.");
-            Console.WriteLine("          If not specified, default path PATH={0} is assigned.", DefaultTestingFilePath);
+            Console.WriteLine("          If not specified, default path PATH={0} is assigned.", DefaultClassificationTestingFilePath);
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} N", ShortIterationsOption, LongIterationsOption);
             Console.WriteLine("          Number of iterations for learning process.");

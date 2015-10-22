@@ -101,8 +101,8 @@ namespace sieci_neuronowe
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
             var backpropagation = new Backpropagation(network, dataSet, LearnRate, parser.Momentum) { BatchSize = BackpropagationBatchSize };
 
-            var iterationsNumber1 = parser.NumberOfIterations;
-            for (var i = 0; i < iterationsNumber1; i++)
+            var iterationsNumber = parser.NumberOfIterations;
+            for (var i = 0; i < iterationsNumber; i++)
             {
                 backpropagation.Iteration();
                 if (i % 100 == 0)
@@ -111,14 +111,14 @@ namespace sieci_neuronowe
                     verificationErrorWriter.WriteLine(CalcError(network, trainingModel.ValidationDataset));
                 }
 
-                if (i % (iterationsNumber1 / 10) != 0)
+                if (i % (iterationsNumber / 10) != 0)
                 {
                     continue;
                 }
 
                 var err = backpropagation.Error;
                 writetext.WriteLine("Backpropagation error: " + err);
-                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber1, err);
+                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, err);
             }
 
             trainingErrorWriter.Close();

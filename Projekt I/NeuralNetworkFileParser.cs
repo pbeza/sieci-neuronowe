@@ -13,12 +13,13 @@ namespace sieci_neuronowe
     {
         private const char TextSeparator = ' ';
         private const char CharacterStartingComment = '#';
-        private const string ExceptionPostfix = "Error reading neural network file. Make sure you have correct file's format. ";
+        private const char BiasMarkCharacterPostfix = 'b';
         private const int MinTotalNumberOfLayers = 2; // input + outplut layer (0 hidden layers)
         private readonly IEnumerator<string> _fileContentEnumerator;
         private readonly BasicNetwork _neuralNetwork = new BasicNetwork();
         private readonly IList<IActivationFunction> _layersActivationFunctions = new List<IActivationFunction>();
-        private IList<int> _neuronsInLayers = new List<int>();
+        private readonly IList<int> _neuronsInLayers = new List<int>();
+        private readonly ISet<int> _indicesOfBiasDefinedLayers = new HashSet<int>();
         private IList<double> _layersBiases = new List<double>();
         private string _currentLine;
         private int _currentLineNumber;
@@ -34,7 +35,8 @@ namespace sieci_neuronowe
             elliott,
             elliott_sym,
             gaussian,
-            bipolar_sigmoid
+            bipolar_sigmoid,
+            off
         };
 
         public NeuralNetworkFileParser(string path)
@@ -45,16 +47,17 @@ namespace sieci_neuronowe
         public BasicNetwork Parse()
         {
             // Fetch first not empty line (which should be sequence of numbers
-            // of neurons in subsequent layers) and set number of neurons for all the layers.
+            // of neurons in subsequent layers), set number of neurons for
+            // all the layers and save layers' numbers for which bias is defined.
 
             SetListOfNeuronsInAllLayers();
 
             // Fetch first not empty line (which should be sequence of layers' activation names)
-            // and set: activation function for all of the layers.
+            // and set: activation functions for all of the layers.
 
             SetActivationFunctionsForAllLayers();
 
-            // Read and save bias for every network layer
+            // Read and save biases for 'b'-marked network layers
 
             SetListOfLayersBiases();
 
@@ -74,19 +77,31 @@ namespace sieci_neuronowe
         private void SetListOfNeuronsInAllLayers()
         {
             SetFirstNotIgnoredLineAsCurrentLine("File is empty.");
-            SetNeuronsInAllLayersFromCurrentLine();
+            var currentLayerIndex = 0;
+            foreach (var s in _currentLine.Split(TextSeparator))
+            {
+                var n = s;
+                if (s.Last() == BiasMarkCharacterPostfix)
+                {
+                    n = s.TrimEnd(BiasMarkCharacterPostfix);
+                    _indicesOfBiasDefinedLayers.Add(currentLayerIndex);
+                }
+                int numberOfNeurons;
+                if (!int.TryParse(n, out numberOfNeurons))
+                {
+                    ThrowErrorFileLoadFile("Given line contains not a number value.");
+                }
+                if (numberOfNeurons <= 0)
+                {
+                    ThrowErrorFileLoadFile("Number of neurons in all layers must be positive.");
+                }
+                _neuronsInLayers.Add(numberOfNeurons);
+                currentLayerIndex++;
+            }
             if (TotalLayersNumber < MinTotalNumberOfLayers)
             {
-                ThrowErrorFileLoadFile("Minimal number of layers is " + MinTotalNumberOfLayers + " (specified " + TotalLayersNumber + " layer(s)).");
-            }
-        }
-
-        private void SetNeuronsInAllLayersFromCurrentLine()
-        {
-            _neuronsInLayers = Array.ConvertAll(_currentLine.Split(TextSeparator), int.Parse);
-            if (_neuronsInLayers.Any(neuronsInLayer => neuronsInLayer <= 0))
-            {
-                ThrowErrorFileLoadFile("One of the specified layers has less than 1 neuron.");
+                var msg = string.Format("Minimal number of layers is {0} (specified {1} layer(s)).", MinTotalNumberOfLayers, TotalLayersNumber);
+                ThrowErrorFileLoadFile(msg);
             }
         }
 
@@ -119,9 +134,10 @@ namespace sieci_neuronowe
         private void SetBiasesForEveryNetworkLayerFromCurrentLine()
         {
             _layersBiases = Array.ConvertAll(_currentLine.Split(TextSeparator), double.Parse);
-            if (_layersBiases.Count != TotalLayersNumber)
+            if (_layersBiases.Count != _indicesOfBiasDefinedLayers.Count)
             {
-                var msg = string.Format("Number of specified biases is {0}. It should be equal to number of all of the layers which is {1}.", _layersBiases.Count, TotalLayersNumber);
+                var msg = string.Format("Number of specified biases is {0}. It should be equal to number of '{1}'-marked layers from 1st section of the file (which is {2}).",
+                                        _layersBiases.Count, BiasMarkCharacterPostfix, _indicesOfBiasDefinedLayers.Count);
                 ThrowErrorFileLoadFile(msg);
             }
         }
@@ -174,21 +190,23 @@ namespace sieci_neuronowe
 
         private void AddAllLayersToNeuralNetwork()
         {
-            const bool isBiasSet = true; // TODO
-            _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions.First(), isBiasSet, _neuronsInLayers.First()));
+            _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions.First(), _indicesOfBiasDefinedLayers.Contains(0), _neuronsInLayers.First()));
             for (var i = 1; i < _neuronsInLayers.Count - 1; i++)
             {
-                _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions[i], isBiasSet, _neuronsInLayers[i]));
+                _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions[i], _indicesOfBiasDefinedLayers.Contains(i), _neuronsInLayers[i]));
             }
-            _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions.Last(), isBiasSet, _neuronsInLayers.Last()));
+            _neuralNetwork.AddLayer(new BasicLayer(_layersActivationFunctions.Last(), _indicesOfBiasDefinedLayers.Contains(_neuronsInLayers.Count - 1), _neuronsInLayers.Last()));
             _neuralNetwork.Structure.FinalizeStructure();
         }
 
         private void AddAllBiasesToNeuralNetwork()
         {
-            for (var i = 0; i < _layersBiases.Count; i++)
+            for (int i = 0, j = 0; i < _layersBiases.Count; i++)
             {
-                _neuralNetwork.SetLayerBiasActivation(i, _layersBiases[i]);
+                if (_indicesOfBiasDefinedLayers.Contains(i))
+                {
+                    _neuralNetwork.SetLayerBiasActivation(i, _layersBiases[j++]);
+                }
             }
         }
 
@@ -234,7 +252,8 @@ namespace sieci_neuronowe
 
         private void ThrowErrorFileLoadFile(string errorMsg)
         {
-            throw new FileLoadException(ExceptionPostfix + errorMsg);
+            var msgPrefix = string.Format("Error in line {0} reading neural network file. Make sure you have correct file's format. ", _currentLineNumber);
+            throw new FileLoadException(msgPrefix + errorMsg);
         }
 
         private IActivationFunction CreateActivationFunctionFromString(string activationFunctionName)
@@ -265,6 +284,8 @@ namespace sieci_neuronowe
                     return new ActivationGaussian();
                 case ActivationFunctionsNames.bipolar_sigmoid:
                     return new ActivationBipolarSteepenedSigmoid();
+                case ActivationFunctionsNames.off:
+                    return null;
             }
 
             throw new NotImplementedException();

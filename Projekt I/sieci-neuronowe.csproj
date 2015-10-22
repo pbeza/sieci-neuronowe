@@ -355,9 +355,10 @@
     <Content Include="data\regression\Square.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="data\sample_neural_networks\format_presentation_of_neural_network.txt">
+    <Content Include="data\sample_neural_networks\format_of_neural_network.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="data\sample_neural_networks\noisyXOR.txt" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5">
