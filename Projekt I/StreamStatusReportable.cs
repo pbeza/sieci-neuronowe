@@ -14,7 +14,7 @@ namespace sieci_neuronowe
 
         public void Report(int total, int current, string message)
         {
-            this.streamWriter.WriteLine("{0} / {1} : {2}", current, total != 0 ? "/" + total : "", message);
+            streamWriter.WriteLine("{0} / {1} : {2}", current, total != 0 ? "/" + total : "", message);
         }
     }
 }

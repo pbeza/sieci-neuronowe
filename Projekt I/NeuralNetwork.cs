@@ -39,9 +39,9 @@ namespace sieci_neuronowe
         private readonly BasicNetwork neuralNetwork;
         private readonly string testingPath;
         private readonly Random rng;
-        private readonly CommandLineParser parser;
+        private readonly ArgsParser parser;
 
-        public NeuralNetwork(CommandLineParser inParser, BasicNetwork neuralNetwork)
+        public NeuralNetwork(ArgsParser inParser, BasicNetwork neuralNetwork)
         {
             this.parser = inParser;
 
@@ -62,7 +62,7 @@ namespace sieci_neuronowe
 
             var csvLearningDataSource = new CSVDataSource(learningPath, true, CSVFormat.DecimalPoint);
             var problemType = parser.Problem;
-            var dataSet = problemType == CommandLineParser.ProblemType.Regression
+            var dataSet = problemType == ArgsParser.ProblemType.Regression
                           ? PrepareRegressionDataSet(csvLearningDataSource)
                           : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
@@ -96,7 +96,7 @@ namespace sieci_neuronowe
 
             trainingModel.SelectTrainingType(dataSet);
 
-            var network = neuralNetwork ?? CreateNetwork(rng, problemType == CommandLineParser.ProblemType.Regression);
+            var network = neuralNetwork ?? CreateNetwork(rng, problemType == ArgsParser.ProblemType.Regression);
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
             var backpropagation = new Backpropagation(network, dataSet, LearnRate, parser.Momentum) { BatchSize = BackpropagationBatchSize };
@@ -371,7 +371,7 @@ namespace sieci_neuronowe
 
         private double CalcError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
-            return parser.Problem == CommandLineParser.ProblemType.Regression
+            return parser.Problem == ArgsParser.ProblemType.Regression
                        ? RegressionError(method, data)
                        : ClassificationError(method, data);
         }
@@ -384,7 +384,7 @@ namespace sieci_neuronowe
             int resolutionX,
             int resolutionY)
         {
-            if (parser.Problem == CommandLineParser.ProblemType.Regression)
+            if (parser.Problem == ArgsParser.ProblemType.Regression)
             {
                 PictureGenerator.DrawGraph(path, testFunction, points, helper, resolutionX, resolutionY);
             }
@@ -400,7 +400,7 @@ namespace sieci_neuronowe
             IMLRegression usedMethod,
             ICollection<ClassifiedPoint> results)
         {
-            if (parser.Problem == CommandLineParser.ProblemType.Regression)
+            if (parser.Problem == ArgsParser.ProblemType.Regression)
             {
                 TestRegressionData(testedPath, helper, usedMethod, results);
             }
