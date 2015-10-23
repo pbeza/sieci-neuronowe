@@ -1,27 +1,39 @@
-﻿using NDesk.Options;
+﻿using System.Linq;
+using NDesk.Options;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 
 namespace sieci_neuronowe
 {
-    public class CommandLineParser
+    public class ArgsParser
     {
         public const string DefaultLogFilePath = @".\out.txt";
-        public const string DefaultLearningFilePath = @".\data\classification\data.XOR.train.100.csv";
-        public const string DefaultTestingFilePath = @".\data\classification\data.XOR.test.1000.csv";
+        public const string DefaultClassificationLearningFilePath = @".\data\classification\data.train.csv";
+        public const string DefaultClassificationTestingFilePath = @".\data\classification\data.test.csv";
         public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
-        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\2d_xor.txt";
-        public const int DefaultNumberOfIterations = 1;
+        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_of_neural_network.txt";
+        public const string ClassificationJsonKey = "classification";
+        public const string IterationsJsonKey = "iterations";
+        public const string MomentumJsonKey = "momentum";
+        public const string LearningRateJsonKey = "learningRate";
+        public const string LearningPathJsonKey = "learningPath";
+        public const string TestingPathJsonKey = "testingPath";
+        public const string NeuralNetworkJsonKey = "networkPath";
+        public const int DefaultNumberOfIterations = 1000;
         public const double DefaultMomentumValue = 0.01;
+        public const double DefaultLearningRateValue = 0.3;
         public const double MinAllowedMomentumValue = 0.0;
         public const double MaxAllowedMomentumValue = 1.0;
+        public const double MinAllowedLearningRate = 0.0;
+        public const double MaxAllowedLearningRate = 1.0;
         public static readonly string[] DefaultArgs =
         {
             "-" + ShortClassificationOption,
-            "-" + ShortTestingPathOption, DefaultTestingFilePath,
-            DefaultLearningFilePath,
+            "-" + ShortTestingPathOption, DefaultClassificationTestingFilePath,
+            DefaultClassificationLearningFilePath,
             DefaultNeuralNetworkDefinitionFilePath
         };
         public enum ProblemType { Classification, Regression, Unspecified };
@@ -29,16 +41,18 @@ namespace sieci_neuronowe
                             ShortClassificationOption = "c",
                             ShortRegressionOption = "r",
                             ShortTestingPathOption = "t",
-                            ShortLogPathOption = "l",
+                            ShortLogPathOption = "v",
                             ShortIterationsOption = "n",
-                            ShortMomentumValueOption = "m",
+                            ShortMomentumValueOption = "l",
+                            ShortLearningRateOption = "k",
                             LongHelpOption = "help",
                             LongClassificationOption = "classification",
                             LongRegressionOption = "regression",
                             LongTestingPathOption = "testing",
                             LongLogPathOption = "log",
                             LongIterationsOption = "iterations",
-                            LongMomentumValueOption = "momentum";
+                            LongMomentumValueOption = "momentum",
+                            LongLearningRateOption = "rate";
         private const int NumberOfExpectedUnrecognizedOptions = 2;
         public ProblemType Problem { get; private set; }
         public bool InputValid { get; private set; }
@@ -49,9 +63,10 @@ namespace sieci_neuronowe
         public string NeuralNetworkDefinitionFilePath { get; private set; }
         public int NumberOfIterations { get; private set; }
         public double Momentum { get; private set; }
+        public double LearningRate { get; private set; }
         public string MessageForUser { get; private set; }
 
-        public CommandLineParser(IEnumerable<string> args)
+        public ArgsParser(string[] args)
         {
             Problem = ProblemType.Unspecified;
             InputValid = false;
@@ -62,8 +77,11 @@ namespace sieci_neuronowe
             NeuralNetworkDefinitionFilePath = string.Empty;
             NumberOfIterations = DefaultNumberOfIterations;
             Momentum = DefaultMomentumValue;
+            LearningRate = DefaultLearningRateValue;
             MessageForUser = string.Empty;
-            Parse(args);
+            var stringToParse = args.Length == 1 ? JsonConfigFileToStringOptions(args[0]) : args;
+            if (stringToParse == null) return;
+            ParseCmdLineOptions(stringToParse.ToArray());
         }
 
         public void PrintUsage(string[] args)
@@ -96,7 +114,7 @@ namespace sieci_neuronowe
             Console.WriteLine("    -{0}, --{1} PATH", ShortTestingPathOption, LongTestingPathOption);
             Console.WriteLine("          Path to CSV file with testing set.");
             Console.WriteLine("          If not given, testing set is the same as learning set.");
-            Console.WriteLine("          If not specified, default path PATH={0} is assigned.", DefaultTestingFilePath);
+            Console.WriteLine("          If not specified, default path PATH={0} is assigned.", DefaultClassificationTestingFilePath);
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} N", ShortIterationsOption, LongIterationsOption);
             Console.WriteLine("          Number of iterations for learning process.");
@@ -106,6 +124,10 @@ namespace sieci_neuronowe
             Console.WriteLine("          Momentum value used for learning process. VAL must be from range [{0}; {1}].", MinAllowedMomentumValue, MaxAllowedMomentumValue);
             Console.WriteLine("          If not specified, default momentum value VAL={0} is assigned.", DefaultMomentumValue);
             Console.WriteLine();
+            Console.WriteLine("    -{0}, --{1} VAL", ShortLearningRateOption, LearningRate);
+            Console.WriteLine("          Learning rate. Must be value from range [{0}; {1}].", MinAllowedLearningRate, MaxAllowedLearningRate);
+            Console.WriteLine("          If not specified, default learning rate value VAL={0} is assigned.", DefaultLearningRateValue);
+            Console.WriteLine();
             Console.WriteLine("    -{0}, --{1} PATH", ShortLogPathOption, LongLogPathOption);
             Console.WriteLine("          Path to log text file which will be created.");
             Console.WriteLine("          If not specified, default path PATH={0} is assigned.", DefaultLogFilePath);
@@ -114,7 +136,76 @@ namespace sieci_neuronowe
             Console.WriteLine("          Print this help/usage and exit.");
         }
 
-        private void Parse(IEnumerable<string> args)
+        private IList<string> JsonConfigFileToStringOptions(string path)
+        {
+            if (!File.Exists(path))
+            {
+                InputValid = false;
+                MessageForUser = string.Format("Config file {0} does NOT exist.", path);
+                return null;
+            }
+            var configString = File.ReadAllText(path);
+            var dict = JsonConvert.DeserializeObject<Dictionary<string, string>>(configString);
+            string classificationString = string.Empty,
+                   iterationsString = string.Empty,
+                   momentumString = string.Empty,
+                   learningRate = string.Empty,
+                   learningPath = string.Empty,
+                   testingPath = string.Empty,
+                   networkPath = string.Empty;
+            if (!dict.TryGetValue(ClassificationJsonKey, out classificationString))
+            {
+                SetMessageKeyNotFound(ClassificationJsonKey, path);
+            }
+            else if (!dict.TryGetValue(IterationsJsonKey, out iterationsString))
+            {
+                SetMessageKeyNotFound(IterationsJsonKey, path);
+            }
+            else if (!dict.TryGetValue(MomentumJsonKey, out momentumString))
+            {
+                SetMessageKeyNotFound(MomentumJsonKey, path);
+            }
+            else if (!dict.TryGetValue(LearningRateJsonKey, out learningRate))
+            {
+                SetMessageKeyNotFound(LearningRateJsonKey, path);
+            }
+            else if (!dict.TryGetValue(LearningPathJsonKey, out learningPath))
+            {
+                SetMessageKeyNotFound(LearningPathJsonKey, path);
+            }
+            else if (!dict.TryGetValue(TestingPathJsonKey, out testingPath))
+            {
+                SetMessageKeyNotFound(TestingPathJsonKey, path);
+            }
+            else if (!dict.TryGetValue(NeuralNetworkJsonKey, out networkPath))
+            {
+                SetMessageKeyNotFound(NeuralNetworkJsonKey, path);
+            }
+            if (MessageForUser != string.Empty)
+            {
+                InputValid = false;
+                return null;
+            }
+            bool isClassification;
+            bool.TryParse(classificationString, out isClassification);
+            return new List<string>
+            {
+                "-" + (isClassification ? ShortClassificationOption : ShortRegressionOption),
+                "-" + ShortIterationsOption, iterationsString,
+                "-" + ShortMomentumValueOption, momentumString.Replace('.', ','), // locale issue
+                "-" + ShortLearningRateOption, learningRate.Replace('.', ','), // locale issue
+                "-" + ShortTestingPathOption, testingPath,
+                learningPath,
+                networkPath
+            };
+        }
+
+        private void SetMessageKeyNotFound(string keyName, string path)
+        {
+            MessageForUser = string.Format("Key '{0}' was not found in '{1}' configuration file.", keyName, path);
+        }
+
+        private void ParseCmdLineOptions(IEnumerable<string> args)
         {
             var unrecognizedOptions = new List<string>();
             var classification = false;
@@ -126,6 +217,7 @@ namespace sieci_neuronowe
                 { ShortTestingPathOption + "|" + LongTestingPathOption + "=", "Path to testing CSV.", v => TestingSetFilePath = v },
                 { ShortIterationsOption + "|" + LongIterationsOption + "=", "Number of iterations.", (int v) => NumberOfIterations = v },
                 { ShortMomentumValueOption + "|" + LongMomentumValueOption + "=", "Momentum value for learning process.", (double v) => Momentum = v },
+                { ShortLearningRateOption + "|" + LongLearningRateOption + "=", "Learning rate.", (double v) => LearningRate = v },
                 { ShortLogPathOption + "|" + LongLogPathOption + "=", "Path to log text file for debugging purposes.", v => LogFilePath = v }
             };
 
@@ -159,6 +251,10 @@ namespace sieci_neuronowe
             else if (Momentum < MinAllowedMomentumValue || Momentum > MaxAllowedMomentumValue)
             {
                 MessageForUser = string.Format("Momentum value must be from range [{0}; {1}].", MinAllowedMomentumValue, MaxAllowedMomentumValue);
+            }
+            else if (LearningRate < MinAllowedLearningRate || LearningRate > MaxAllowedLearningRate)
+            {
+                MessageForUser = string.Format("Learning rate value must be from range [{0}; {1}].", MinAllowedLearningRate, MaxAllowedLearningRate);
             }
             else if (!File.Exists(LearningSetFilePath = unrecognizedOptions[0]))
             {

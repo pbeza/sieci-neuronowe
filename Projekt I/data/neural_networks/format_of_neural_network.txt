@@ -1,0 +1,122 @@
+﻿### WHAT IS IT?
+#
+# This file:
+#    1. Contains definition of simple neural network with two hidden layers.
+#    2. Is NOT meant to be any sensible neural network for any purpose.
+#    3. Presents file's neural network text format.
+#
+### FORMAT
+#
+# Format of this file is simple. It consists of 4 sections:
+#    1. Declaration of number of neurons in all of the layers.
+#       If you want to specify layer's bias append 'b' character to number.
+#    2. Declaration of activation functions for all layers.
+#       List of all available activation functions:
+#         - sigmoid,
+#         - linear,
+#         - bipolar,
+#         - sin,
+#         - tanh,
+#         - elliott,
+#         - elliott_sym,
+#         - gaussian,
+#         - bipolar_sigmoid,
+#         - off (no activation function - ie. for input layer).
+#    3. Declaration of biases for all of the 'b'-marked layers from #1.
+#    4. Weights of connection between neighboring layers for the subsequent
+#       neurons.
+#
+### NOTE
+#
+#    1. Double and float numbers use comma or dot
+#       character depending on your locale.
+#    2. All whitespaces are ignored.
+#    3. Comments begin with '#' character.
+#
+
+
+###
+######## SECTION 1 ########
+###
+
+# Number of neurons in: input layer, hidden layers and output layer:
+
+2			3b			4b			3			
+
+
+###
+######## SECTION 2 ########
+###
+
+# Activation functions for inpur layer, hidden layers and output layer:
+
+linear		sigmoid		linear		sin
+
+
+###
+######## SECTION 3 ########
+###
+
+# Biases for layers specified in 1st section:
+
+0,3			0,5
+
+
+###
+######## SECTION 4 ########
+###
+
+
+###
+### Layers: 1st <-> 2nd ###
+###
+
+# Weights of connections between 1st and 2nd layer starting from 1st vertex of 1st layer:
+
+0,00		0,01		0,02
+
+# Weights of connections between 1st and 2nd layer starting from 2nd vertex of 1st layer:
+
+0,10		0,11		0,12
+
+
+###
+### Layers: 2nd <-> 3rd ###
+###
+
+# Weights of connections between 2nd and 3rd layer starting from 1st vertex of 2nd layer:
+
+1,00		1,01		1,02		1,03
+
+# Weights of connections between 2nd and 3rd layer starting from 2nd vertex of 2nd layer:
+
+1,10		1,11		1,12		1,13
+
+# Weights of connections between 2nd and 3rd layer starting from 3rd vertex of 2nd layer:
+
+1,20		1,21		1,22		1,23
+
+
+###
+### Layers: 3rd <-> 4th ###
+###
+
+
+# Weights of connections between 3rd and 4th layer starting from 1st vertex of 3rd layer:
+
+2,00		2,01		2,02
+
+# Weights of connections between 2nd and 3rd layer starting from 2nd vertex of 3rd layer:
+
+2,10		2,11		2,12
+
+# Weights of connections between 2nd and 3rd layer starting from 3rd vertex of 3rd layer:
+
+2,20		2,21		2,22
+
+# Weights of connections between 2nd and 3rd layer starting from 4th vertex of 3rd layer:
+
+2,30		2,31		2,32
+
+
+# End of file. :-)

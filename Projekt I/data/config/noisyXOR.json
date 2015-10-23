@@ -1,0 +1,9 @@
+﻿{
+    "classification"    : true,
+    "iterations"        : 1000,
+    "momentum"          : 0.01,
+    "learningRate"      : 0.3,
+    "learningPath"      : ".\\data\\classification\\data.noisyXOR.train.1000.csv",
+    "testingPath"       : ".\\data\\classification\\data.noisyXOR.test.1000.csv",
+    "networkPath"       : ".\\data\\neural_networks\\noisyXOR.txt"
+}

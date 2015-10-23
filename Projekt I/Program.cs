@@ -10,24 +10,24 @@ namespace sieci_neuronowe
     {
         public static void Run(string[] args)
         {
-            var cmdLinePrser = new CommandLineParser(args.Length == 0 ? CommandLineParser.DefaultArgs : args);
-            if (cmdLinePrser.InputValid)
+            var argsParser = new ArgsParser(args.Length == 0 ? ArgsParser.DefaultArgs : args);
+            if (argsParser.InputValid)
             {
-                if (!cmdLinePrser.ShowHelpRequested)
+                if (!argsParser.ShowHelpRequested)
                 {
-                    var fileParser = new NeuralNetworkFileParser(cmdLinePrser.NeuralNetworkDefinitionFilePath);
+                    var fileParser = new NeuralNetworkFileParser(argsParser.NeuralNetworkDefinitionFilePath);
                     var parsedNeuralNetwork = fileParser.Parse();
-                    var neuralNetwork = new NeuralNetwork(cmdLinePrser, parsedNeuralNetwork);
+                    var neuralNetwork = new NeuralNetwork(argsParser, parsedNeuralNetwork);
                     neuralNetwork.Run();
                 }
                 else
                 {
-                    cmdLinePrser.PrintUsage(args);
+                    argsParser.PrintUsage(args);
                 }
             }
             else
             {
-                Console.WriteLine(cmdLinePrser.MessageForUser);
+                Console.WriteLine(argsParser.MessageForUser);
             }
         }
 

@@ -36,10 +36,10 @@ namespace sieci_neuronowe
         private readonly string logOutputPath;
         private readonly BasicNetwork neuralNetwork;
         private readonly string testingPath;
+        private readonly Random rng;
+        private readonly ArgsParser parser;
 
-        private readonly CommandLineParser parser;
-
-        public NeuralNetwork(CommandLineParser inParser, BasicNetwork neuralNetwork)
+        public NeuralNetwork(ArgsParser inParser, BasicNetwork neuralNetwork)
         {
             this.parser = inParser;
 
@@ -59,7 +59,7 @@ namespace sieci_neuronowe
 
             var csvLearningDataSource = new CSVDataSource(learningPath, true, CSVFormat.DecimalPoint);
             var problemType = parser.Problem;
-            var dataSet = problemType == CommandLineParser.ProblemType.Regression
+            var dataSet = problemType == ArgsParser.ProblemType.Regression
                           ? PrepareRegressionDataSet(csvLearningDataSource)
                           : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
@@ -93,13 +93,13 @@ namespace sieci_neuronowe
 
             trainingModel.SelectTrainingType(dataSet);
 
+            var network = neuralNetwork ?? CreateNetwork(rng, problemType == ArgsParser.ProblemType.Regression);
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
             var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, LearnRate, this.parser.Momentum) { BatchSize = BackpropagationBatchSize };
 
-            var numberOfIterations = parser.NumberOfIterations;
-            var writeEvery = numberOfIterations / 10 > 0 ? numberOfIterations / 10 : 1;
-            for (var i = 0; i < numberOfIterations; i++)
+            var iterationsNumber = parser.NumberOfIterations;
+            for (var i = 0; i < iterationsNumber; i++)
             {
                 backpropagation.Iteration();
                 if (i % 100 == 0)
@@ -108,14 +108,14 @@ namespace sieci_neuronowe
                     verificationErrorWriter.WriteLine(this.CalcError(this.neuralNetwork, trainingModel.ValidationDataset));
                 }
 
-                if (i % writeEvery != 0)
+                if (i % (iterationsNumber / 10) != 0)
                 {
                     continue;
                 }
 
                 var err = backpropagation.Error;
                 writetext.WriteLine("Backpropagation error: " + err);
-                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, numberOfIterations, err);
+                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, err);
             }
 
             trainingErrorWriter.Close();
@@ -343,7 +343,7 @@ namespace sieci_neuronowe
 
         private double CalcError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
-            return parser.Problem == CommandLineParser.ProblemType.Regression
+            return parser.Problem == ArgsParser.ProblemType.Regression
                        ? RegressionError(method, data)
                        : ClassificationError(method, data);
         }
@@ -356,7 +356,7 @@ namespace sieci_neuronowe
             int resolutionX,
             int resolutionY)
         {
-            if (parser.Problem == CommandLineParser.ProblemType.Regression)
+            if (parser.Problem == ArgsParser.ProblemType.Regression)
             {
                 PictureGenerator.DrawGraph(path, testFunction, points, helper, resolutionX, resolutionY);
             }
@@ -372,7 +372,7 @@ namespace sieci_neuronowe
             BasicNetwork usedMethod,
             ICollection<ProcessedPoint> results)
         {
-            if (parser.Problem == CommandLineParser.ProblemType.Regression)
+            if (parser.Problem == ArgsParser.ProblemType.Regression)
             {
                 TestRegressionData(testedPath, helper, usedMethod, results);
             }
