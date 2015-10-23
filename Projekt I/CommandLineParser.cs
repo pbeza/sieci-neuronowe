@@ -8,12 +8,12 @@ namespace sieci_neuronowe
     public class CommandLineParser
     {
         public const string DefaultLogFilePath = @".\out.txt";
-        public const string DefaultLearningFilePath = @".\data\classification\data.train.csv";
-        public const string DefaultTestingFilePath = @".\data\classification\data.test.csv";
+        public const string DefaultLearningFilePath = @".\data\classification\data.XOR.train.100.csv";
+        public const string DefaultTestingFilePath = @".\data\classification\data.XOR.test.1000.csv";
         public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
-        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_presentation_of_neural_network.txt";
-        public const int DefaultNumberOfIterations = 1000;
+        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\2d_xor.txt";
+        public const int DefaultNumberOfIterations = 1;
         public const double DefaultMomentumValue = 0.01;
         public const double MinAllowedMomentumValue = 0.0;
         public const double MaxAllowedMomentumValue = 1.0;
@@ -31,7 +31,7 @@ namespace sieci_neuronowe
                             ShortTestingPathOption = "t",
                             ShortLogPathOption = "l",
                             ShortIterationsOption = "n",
-                            ShortMomentumValueOption = "l",
+                            ShortMomentumValueOption = "m",
                             LongHelpOption = "help",
                             LongClassificationOption = "classification",
                             LongRegressionOption = "regression",

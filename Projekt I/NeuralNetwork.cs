@@ -1,5 +1,4 @@
 ﻿using Encog;
-using Encog.Engine.Network.Activation;
 using Encog.ML;
 using Encog.ML.Data;
 using Encog.ML.Data.Basic;
@@ -9,7 +8,6 @@ using Encog.ML.Data.Versatile.Sources;
 using Encog.ML.Factory;
 using Encog.ML.Model;
 using Encog.Neural.Networks;
-using Encog.Neural.Networks.Layers;
 using Encog.Neural.Networks.Training.Propagation.Back;
 using Encog.Util.CSV;
 using System;
@@ -38,7 +36,7 @@ namespace sieci_neuronowe
         private readonly string logOutputPath;
         private readonly BasicNetwork neuralNetwork;
         private readonly string testingPath;
-        private readonly Random rng;
+
         private readonly CommandLineParser parser;
 
         public NeuralNetwork(CommandLineParser inParser, BasicNetwork neuralNetwork)
@@ -48,7 +46,6 @@ namespace sieci_neuronowe
             this.testingPath = parser.TestingSetFilePath ?? parser.LearningSetFilePath;
             this.learningPath = parser.LearningSetFilePath;
             this.logOutputPath = parser.LogFilePath;
-            this.rng = new Random(RandomnessSeed);
             this.neuralNetwork = neuralNetwork;
         }
 
@@ -96,35 +93,35 @@ namespace sieci_neuronowe
 
             trainingModel.SelectTrainingType(dataSet);
 
-            var network = neuralNetwork ?? CreateNetwork(rng, problemType == CommandLineParser.ProblemType.Regression);
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
-            var backpropagation = new Backpropagation(network, dataSet, LearnRate, parser.Momentum) { BatchSize = BackpropagationBatchSize };
+            var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, LearnRate, this.parser.Momentum) { BatchSize = BackpropagationBatchSize };
 
-            var iterationsNumber1 = parser.NumberOfIterations;
-            for (var i = 0; i < iterationsNumber1; i++)
+            var numberOfIterations = parser.NumberOfIterations;
+            var writeEvery = numberOfIterations / 10 > 0 ? numberOfIterations / 10 : 1;
+            for (var i = 0; i < numberOfIterations; i++)
             {
                 backpropagation.Iteration();
                 if (i % 100 == 0)
                 {
-                    trainingErrorWriter.WriteLine(CalcError(network, trainingModel.TrainingDataset));
-                    verificationErrorWriter.WriteLine(CalcError(network, trainingModel.ValidationDataset));
+                    trainingErrorWriter.WriteLine(this.CalcError(this.neuralNetwork, trainingModel.TrainingDataset));
+                    verificationErrorWriter.WriteLine(this.CalcError(this.neuralNetwork, trainingModel.ValidationDataset));
                 }
 
-                if (i % (iterationsNumber1 / 10) != 0)
+                if (i % writeEvery != 0)
                 {
                     continue;
                 }
 
                 var err = backpropagation.Error;
                 writetext.WriteLine("Backpropagation error: " + err);
-                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber1, err);
+                Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, numberOfIterations, err);
             }
 
             trainingErrorWriter.Close();
             verificationErrorWriter.Close();
 
-            PrintWeights(network, writetext);
+            PrintWeights(this.neuralNetwork, writetext);
             var usedMethod = (BasicNetwork)backpropagation.Method;
 
             // Use a 5-fold cross-validated train.  Return the best method found.
@@ -137,17 +134,11 @@ namespace sieci_neuronowe
             // Display the final model.
             writetext.WriteLine("Final model: " + usedMethod);
 
-            /*
-            writetext.WriteLine(
-                "Training error: " + trainingModel.CalculateError(usedMethod, trainingModel.TrainingDataset));
-            writetext.WriteLine(
-                "Validation error: " + trainingModel.CalculateError(usedMethod, trainingModel.ValidationDataset));
-            */
             writetext.WriteLine("Training error: " + CalcError(usedMethod, trainingModel.TrainingDataset));
             writetext.WriteLine("Validation error: " + CalcError(usedMethod, trainingModel.ValidationDataset));
-            writetext.WriteLine("Neuron weight dump: " + network.DumpWeights());
+            writetext.WriteLine("Neuron weight dump: " + this.neuralNetwork.DumpWeights());
 
-            var allPoints = new List<ClassifiedPoint>();
+            var allPoints = new List<ProcessedPoint>();
             TestData(learningPath, normHelper, usedMethod, allPoints);
             TestData(testingPath, normHelper, usedMethod, allPoints);
             PrintPoints(allPoints, writetext);
@@ -158,30 +149,41 @@ namespace sieci_neuronowe
             EncogFramework.Instance.Shutdown();
         }
 
+        public static int ActualCategory(IMLData pt)
+        {
+            // Returns index of the value at which pt is almost 1 if there is exactly one such value
+            // Otherwise returns -1
+            int category = -1;
+            for (var i = 0; i < pt.Count; i++)
+            {
+                if (pt[i] > 0.99999)
+                {
+                    if (category >= 0)
+                    {
+                        return -1;
+                    }
+                    category = i;
+                    continue;
+                }
+
+                if (pt[i] > -0.99999)
+                {
+                    return -1;
+                }
+            }
+
+            return category;
+        }
+
         private static double ClassificationError(BasicNetwork method, IEnumerable<IMLDataPair> data)
         {
             var correct = 0;
             var total = 0;
             foreach (var pair in data)
             {
-                bool thisCorrect = true;
                 var computed = method.Classify(pair.Input);
-                for (var i = 0; i < pair.Ideal.Count; i++)
-                {
-                    if (computed == i && pair.Ideal[i] < 0.99999)
-                    {
-                        thisCorrect = false;
-                        break;
-                    }
-
-                    if (computed != i && pair.Ideal[i] > -0.99999)
-                    {
-                        thisCorrect = false;
-                        break;
-                    }
-                }
-
-                if (thisCorrect)
+                var actual = ActualCategory(pair.Ideal);
+                if (computed == actual)
                 {
                     correct++;
                 }
@@ -190,41 +192,6 @@ namespace sieci_neuronowe
             }
 
             return (total - correct) / (double)total;
-        }
-
-        private static BasicNetwork CreateNetwork(Random rng, bool isRegression)
-        {
-            var network = new BasicNetwork();
-
-            // TODO: Wszystkie parametry konfigurowalne dla każdego layera (poza pierwszym bo input?)
-            if (isRegression)
-            {
-                network.AddLayer(new BasicLayer(new ActivationLinear(), true, 1));
-                network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
-                network.AddLayer(new BasicLayer(new ActivationLinear(), true, 1));
-            }
-            else
-            {
-                network.AddLayer(new BasicLayer(new ActivationLinear(), true, 2));
-                network.AddLayer(new BasicLayer(new ActivationSigmoid(), true, 5));
-                network.AddLayer(new BasicLayer(new ActivationLinear(), true, 3));
-            }
-
-            network.Structure.FinalizeStructure();
-
-            // Zrób pełną sieć
-            for (var i = 0; i < network.LayerCount - 1; i++)
-            {
-                for (var j = 0; j < network.GetLayerNeuronCount(i); j++)
-                {
-                    for (var k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
-                    {
-                        network.SetWeight(i, j, k, (rng.NextDouble() - 0.5) * 2.0);
-                    }
-                }
-            }
-
-            return network;
         }
 
         private static VersatileMLDataSet PrepareClassificationDataSet(IVersatileDataSource dataSource)
@@ -262,7 +229,7 @@ namespace sieci_neuronowe
             return dataSet;
         }
 
-        private static void PrintPoints(IEnumerable<ClassifiedPoint> points, StreamWriter writetext)
+        private static void PrintPoints(IEnumerable<ProcessedPoint> points, StreamWriter writetext)
         {
             foreach (var point in points)
             {
@@ -320,8 +287,8 @@ namespace sieci_neuronowe
         private static void TestClassificationData(
             string testedPath,
             NormalizationHelper helper,
-            IMLRegression usedMethod,
-            ICollection<ClassifiedPoint> results)
+            BasicNetwork usedMethod,
+            ICollection<ProcessedPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
@@ -340,17 +307,24 @@ namespace sieci_neuronowe
                 var output = usedMethod.Compute(data);
                 var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 var computed = int.Parse(stringChosen);
-                results.Add(new ClassifiedPoint(x, y, computed, correct));
+                results.Add(new ProcessedPoint(x, y, computed, correct));
             }
 
             csv.Close();
         }
 
+        public static double[] DataToArray(IMLData data)
+        {
+            double[] ret = new double[data.Count];
+            data.CopyTo(ret, 0, data.Count);
+            return ret;
+        }
+
         private static void TestRegressionData(
             string testedPath,
             NormalizationHelper helper,
-            IMLRegression usedMethod,
-            ICollection<ClassifiedPoint> results)
+            BasicNetwork usedMethod,
+            ICollection<ProcessedPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
@@ -361,9 +335,7 @@ namespace sieci_neuronowe
                 var data = new BasicMLData(new[] { x });
                 helper.NormalizeInputVector(new[] { csv.Get(0) }, data.Data, false);
                 var output = usedMethod.Compute(data);
-                var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
-                var y = double.Parse(stringChosen);
-                results.Add(new ClassifiedPoint(x, y, -1, -1));
+                results.Add(new ProcessedPoint(x, y, -1, -1));
             }
 
             csv.Close();
@@ -379,7 +351,7 @@ namespace sieci_neuronowe
         private void DrawPicture(
             string path,
             IMLRegression testFunction,
-            List<ClassifiedPoint> points,
+            List<ProcessedPoint> points,
             NormalizationHelper helper,
             int resolutionX,
             int resolutionY)
@@ -397,8 +369,8 @@ namespace sieci_neuronowe
         private void TestData(
             string testedPath,
             NormalizationHelper helper,
-            IMLRegression usedMethod,
-            ICollection<ClassifiedPoint> results)
+            BasicNetwork usedMethod,
+            ICollection<ProcessedPoint> results)
         {
             if (parser.Problem == CommandLineParser.ProblemType.Regression)
             {

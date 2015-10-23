@@ -33,6 +33,8 @@ namespace sieci_neuronowe
 
         public static void Main(string[] args)
         {
+            Run(args);
+            /*
             try
             {
                 Run(args);
@@ -44,6 +46,7 @@ namespace sieci_neuronowe
                 Console.WriteLine("Details:");
                 Console.WriteLine(e.Message);
             }
+            */
         }
     }
 }

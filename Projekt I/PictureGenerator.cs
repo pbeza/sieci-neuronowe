@@ -28,7 +28,7 @@ namespace sieci_neuronowe
         public static void DrawArea(
             string path,
             IMLRegression testFunction,
-            List<ClassifiedPoint> points,
+            List<ProcessedPoint> points,
             NormalizationHelper helper,
             int resolutionX,
             int resolutionY)
@@ -47,8 +47,7 @@ namespace sieci_neuronowe
                 {
                     var y = (j * stepY) + coordOffset;
                     var output = testFunction.Compute(new BasicMLData(new[] { x, y }));
-                    var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
-                    var result = int.Parse(stringChosen);
+                    var result = NeuralNetwork.ActualCategory(output);
                     var colorRGB = RGBFromInt(result, points.Any());
                     Marshal.WriteInt32(lck.Scan0 + (i * lck.Width + j) * 4, colorRGB);
                 }
@@ -80,7 +79,7 @@ namespace sieci_neuronowe
         public static void DrawGraph(
             string path,
             IMLRegression testFunction,
-            List<ClassifiedPoint> points,
+            List<ProcessedPoint> points,
             NormalizationHelper helper,
             int resolutionX,
             int resolutionY)
