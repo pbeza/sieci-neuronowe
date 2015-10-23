@@ -106,15 +106,15 @@ linear		sigmoid		linear		sin
 
 2,00		2,01		2,02
 
-# Weights of connections between 2nd and 3rd layer starting from 2nd vertex of 3rd layer:
+# Weights of connections between 3rd and 4th layer starting from 2nd vertex of 3rd layer:
 
 2,10		2,11		2,12
 
-# Weights of connections between 2nd and 3rd layer starting from 3rd vertex of 3rd layer:
+# Weights of connections between 3rd and 4th layer starting from 3rd vertex of 3rd layer:
 
 2,20		2,21		2,22
 
-# Weights of connections between 2nd and 3rd layer starting from 4th vertex of 3rd layer:
+# Weights of connections between 3rd and 4th layer starting from 4th vertex of 3rd layer:
 
 2,30		2,31		2,32
 

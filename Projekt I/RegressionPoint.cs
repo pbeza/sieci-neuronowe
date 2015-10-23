@@ -8,9 +8,9 @@
 
         public RegressionPoint(double x, double y, double correctY)
         {
-            this.X = x;
-            this.Y = y;
-            this.CorrectY = correctY;
+            X = x;
+            Y = y;
+            CorrectY = correctY;
         }
     }
 }

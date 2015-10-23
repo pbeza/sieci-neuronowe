@@ -10,7 +10,7 @@ namespace sieci_neuronowe
     {
         public static void Run(string[] args)
         {
-            var argsParser = new ArgsParser(args.Length == 0 ? ArgsParser.DefaultArgs : args);
+            var argsParser = new ArgsParser(/*args.Length == 0 ? ArgsParser.DefaultArgs : */args);
             if (argsParser.InputValid)
             {
                 if (!argsParser.ShowHelpRequested)
