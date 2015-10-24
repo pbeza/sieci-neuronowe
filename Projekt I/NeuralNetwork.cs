@@ -36,7 +36,6 @@ namespace sieci_neuronowe
         private readonly string logOutputPath;
         private readonly BasicNetwork neuralNetwork;
         private readonly string testingPath;
-        private readonly Random rng;
         private readonly ArgsParser parser;
 
         public NeuralNetwork(ArgsParser inParser, BasicNetwork neuralNetwork)
@@ -93,7 +92,6 @@ namespace sieci_neuronowe
 
             trainingModel.SelectTrainingType(dataSet);
 
-            var network = neuralNetwork ?? CreateNetwork(rng, problemType == ArgsParser.ProblemType.Regression);
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
             var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, LearnRate, this.parser.Momentum) { BatchSize = BackpropagationBatchSize };
@@ -138,7 +136,7 @@ namespace sieci_neuronowe
             writetext.WriteLine("Validation error: " + CalcError(usedMethod, trainingModel.ValidationDataset));
             writetext.WriteLine("Neuron weight dump: " + this.neuralNetwork.DumpWeights());
 
-            var allPoints = new List<ProcessedPoint>();
+            var allPoints = new List<ClassifiedPoint>();
             TestData(learningPath, normHelper, usedMethod, allPoints);
             TestData(testingPath, normHelper, usedMethod, allPoints);
             PrintPoints(allPoints, writetext);
@@ -153,10 +151,11 @@ namespace sieci_neuronowe
         {
             // Returns index of the value at which pt is almost 1 if there is exactly one such value
             // Otherwise returns -1
+            const double GoodEnough = 0.9;
             int category = -1;
             for (var i = 0; i < pt.Count; i++)
             {
-                if (pt[i] > 0.99999)
+                if (pt[i] > GoodEnough)
                 {
                     if (category >= 0)
                     {
@@ -166,7 +165,7 @@ namespace sieci_neuronowe
                     continue;
                 }
 
-                if (pt[i] > -0.99999)
+                if (pt[i] > -GoodEnough)
                 {
                     return -1;
                 }
@@ -229,7 +228,7 @@ namespace sieci_neuronowe
             return dataSet;
         }
 
-        private static void PrintPoints(IEnumerable<ProcessedPoint> points, StreamWriter writetext)
+        private static void PrintPoints(IEnumerable<ClassifiedPoint> points, StreamWriter writetext)
         {
             foreach (var point in points)
             {
@@ -288,7 +287,7 @@ namespace sieci_neuronowe
             string testedPath,
             NormalizationHelper helper,
             BasicNetwork usedMethod,
-            ICollection<ProcessedPoint> results)
+            ICollection<ClassifiedPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
@@ -307,7 +306,7 @@ namespace sieci_neuronowe
                 var output = usedMethod.Compute(data);
                 var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 var computed = int.Parse(stringChosen);
-                results.Add(new ProcessedPoint(x, y, computed, correct));
+                results.Add(new ClassifiedPoint(x, y, computed, correct));
             }
 
             csv.Close();
@@ -324,7 +323,7 @@ namespace sieci_neuronowe
             string testedPath,
             NormalizationHelper helper,
             BasicNetwork usedMethod,
-            ICollection<ProcessedPoint> results)
+            ICollection<ClassifiedPoint> results)
         {
             var csv = new ReadCSV(testedPath, true, CSVFormat.DecimalPoint);
 
@@ -335,7 +334,9 @@ namespace sieci_neuronowe
                 var data = new BasicMLData(new[] { x });
                 helper.NormalizeInputVector(new[] { csv.Get(0) }, data.Data, false);
                 var output = usedMethod.Compute(data);
-                results.Add(new ProcessedPoint(x, y, -1, -1));
+                var outstr = helper.DenormalizeOutputVectorToString(output);
+                var y = double.Parse(outstr[0]);
+                results.Add(new ClassifiedPoint(x, y, -1, -1));
             }
 
             csv.Close();
@@ -351,7 +352,7 @@ namespace sieci_neuronowe
         private void DrawPicture(
             string path,
             IMLRegression testFunction,
-            List<ProcessedPoint> points,
+            List<ClassifiedPoint> points,
             NormalizationHelper helper,
             int resolutionX,
             int resolutionY)
@@ -370,7 +371,7 @@ namespace sieci_neuronowe
             string testedPath,
             NormalizationHelper helper,
             BasicNetwork usedMethod,
-            ICollection<ProcessedPoint> results)
+            ICollection<ClassifiedPoint> results)
         {
             if (parser.Problem == ArgsParser.ProblemType.Regression)
             {

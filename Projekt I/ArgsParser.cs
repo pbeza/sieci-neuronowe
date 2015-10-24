@@ -15,6 +15,7 @@ namespace sieci_neuronowe
         public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
         public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_of_neural_network.txt";
+        public const string DefaultConfigFile = @".\data\config\circles.json";
         public const string ClassificationJsonKey = "classification";
         public const string IterationsJsonKey = "iterations";
         public const string MomentumJsonKey = "momentum";
@@ -31,10 +32,7 @@ namespace sieci_neuronowe
         public const double MaxAllowedLearningRate = 1.0;
         public static readonly string[] DefaultArgs =
         {
-            "-" + ShortClassificationOption,
-            "-" + ShortTestingPathOption, DefaultClassificationTestingFilePath,
-            DefaultClassificationLearningFilePath,
-            DefaultNeuralNetworkDefinitionFilePath
+            DefaultConfigFile
         };
         public enum ProblemType { Classification, Regression, Unspecified };
         public const string ShortHelpOption = "h",

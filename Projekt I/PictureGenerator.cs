@@ -28,7 +28,7 @@ namespace sieci_neuronowe
         public static void DrawArea(
             string path,
             IMLRegression testFunction,
-            List<ProcessedPoint> points,
+            List<ClassifiedPoint> points,
             NormalizationHelper helper,
             int resolutionX,
             int resolutionY)
@@ -79,7 +79,7 @@ namespace sieci_neuronowe
         public static void DrawGraph(
             string path,
             IMLRegression testFunction,
-            List<ProcessedPoint> points,
+            List<ClassifiedPoint> points,
             NormalizationHelper helper,
             int resolutionX,
             int resolutionY)
@@ -139,9 +139,9 @@ namespace sieci_neuronowe
 
         private static int RGBFromInt(int i, bool lowIntensity)
         {
-            var red = (i % 4) == 1;
-            var green = (i % 4) == 2;
-            var blue = (i % 4) == 3;
+            var red = (i % 4) == 0;
+            var green = (i % 4) == 1;
+            var blue = (i % 4) == 2;
             var val = lowIntensity ? 63 : 255;
             var r = red ? val : 0;
             var g = green ? val : 0;
