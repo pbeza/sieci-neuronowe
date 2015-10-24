@@ -100,6 +100,11 @@ namespace sieci_neuronowe
             for (var i = 0; i < iterationsNumber; i++)
             {
                 backpropagation.Iteration();
+                if (Console.KeyAvailable && Console.ReadKey().Key == ConsoleKey.Escape)
+                {
+                    break;
+                }
+
                 if (i % 100 == 0)
                 {
                     trainingErrorWriter.WriteLine(this.CalcError(this.neuralNetwork, trainingModel.TrainingDataset));
@@ -253,13 +258,17 @@ namespace sieci_neuronowe
         {
             for (var i = 0; i < network.LayerCount - 1; i++)
             {
-                writer.WriteLine("Layer: {0}. Neurons number: {1}.", i, network.GetLayerNeuronCount(i));
-                for (var j = 0; j < network.GetLayerNeuronCount(i); j++)
+                var thisLayerCount = network.GetLayerNeuronCount(i);
+                var nextLayerCount = network.GetLayerNeuronCount(i + 1);
+                writer.WriteLine("# Layer: {0}. Neurons number: {1}.", i, thisLayerCount);
+                for (var j = 0; j < thisLayerCount; j++)
                 {
-                    for (var k = 0; k < network.GetLayerNeuronCount(i + 1); k++)
+                    for (var k = 0; k < nextLayerCount; k++)
                     {
-                        writer.WriteLine("{0}->{1}: {2:F3}", j, k, network.GetWeight(i, j, k));
+                        writer.Write("{0:F5} ", network.GetWeight(i, j, k));
                     }
+
+                    writer.WriteLine();
                 }
             }
         }
