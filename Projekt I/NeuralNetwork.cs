@@ -180,7 +180,8 @@ namespace sieci_neuronowe
             var total = 0;
             foreach (var pair in data)
             {
-                var computed = method.Classify(pair.Input);
+                var output = method.Compute(pair.Input);
+                var computed = ActualCategory(output);
                 var actual = ActualCategory(pair.Ideal);
                 if (computed == actual)
                 {
@@ -304,8 +305,7 @@ namespace sieci_neuronowe
                 var data = new BasicMLData(new[] { x, y });
                 helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, data.Data, false);
                 var output = usedMethod.Compute(data);
-                var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
-                var computed = int.Parse(stringChosen);
+                var computed = ActualCategory(output);
                 results.Add(new ClassifiedPoint(x, y, computed, correct));
             }
 

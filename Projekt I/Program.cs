@@ -28,6 +28,7 @@ namespace sieci_neuronowe
             else
             {
                 Console.WriteLine(argsParser.MessageForUser);
+                Console.ReadKey();
             }
         }
 

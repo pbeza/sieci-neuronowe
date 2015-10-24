@@ -1,15 +1,11 @@
-﻿#region
-
+﻿using Encog.ML;
+using Encog.ML.Data.Basic;
+using Encog.ML.Data.Versatile;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
-using Encog.ML;
-using Encog.ML.Data.Basic;
-using Encog.ML.Data.Versatile;
-
-#endregion
 
 namespace sieci_neuronowe
 {

@@ -1,21 +1,21 @@
-﻿using System.Linq;
-using NDesk.Options;
+﻿using NDesk.Options;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace sieci_neuronowe
 {
     public class ArgsParser
     {
-        public const string DefaultLogFilePath = @".\out.txt";
-        public const string DefaultClassificationLearningFilePath = @".\data\classification\data.train.csv";
-        public const string DefaultClassificationTestingFilePath = @".\data\classification\data.test.csv";
-        public const string DefaultRegressionLearningFilePath = @".\data\regression\data.xsq.train.csv";
-        public const string DefaultRegressionTestingFilePath = @".\data\regression\data.xsq.test.csv";
-        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\sample_neural_networks\format_of_neural_network.txt";
-        public const string DefaultConfigFile = @".\data\config\circles.json";
+        public const string DefaultLogFilePath = @".\log.txt";
+        public const string DefaultClassificationLearningFilePath = @".\data\samples\classification\data.train.csv";
+        public const string DefaultClassificationTestingFilePath = @".\data\samples\classification\data.test.csv";
+        public const string DefaultRegressionLearningFilePath = @".\data\samples\regression\data.xsq.train.csv";
+        public const string DefaultRegressionTestingFilePath = @".\data\samples\regression\data.xsq.test.csv";
+        public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\neural_networks\example.txt";
+        public const string DefaultConfigFile = @".\data\config\classification\circles.json";
         public const string ClassificationJsonKey = "classification";
         public const string IterationsJsonKey = "iterations";
         public const string MomentumJsonKey = "momentum";
@@ -64,7 +64,7 @@ namespace sieci_neuronowe
         public double LearningRate { get; private set; }
         public string MessageForUser { get; private set; }
 
-        public ArgsParser(string[] args)
+        public ArgsParser(IList<string> args)
         {
             Problem = ProblemType.Unspecified;
             InputValid = false;
@@ -77,35 +77,47 @@ namespace sieci_neuronowe
             Momentum = DefaultMomentumValue;
             LearningRate = DefaultLearningRateValue;
             MessageForUser = string.Empty;
-            var stringToParse = args.Length == 1 ? JsonConfigFileToStringOptions(args[0]) : args;
-            if (stringToParse == null) return;
-            ParseCmdLineOptions(stringToParse.ToArray());
+            if (args.Count == 1 && (args[0] == "--" + LongHelpOption || args[0] == "-" + ShortHelpOption))
+            {
+                ShowHelpRequested = true;
+                InputValid = true;
+            }
+            else
+            {
+                var stringToParse = args.Count == 1 ? JsonConfigFileToStringOptions(args[0]) : args;
+                if (stringToParse == null) return;
+                ParseCmdLineOptions(stringToParse.ToArray());
+            }
         }
 
         public void PrintUsage(string[] args)
         {
-            const string LearningSetPath = "LEARNING_SET_PATH",
-                         NetworkDefinitionPath = "NETWORK_DEFINITION_PATH";
+            const string learningSetPath = "LEARNING_SET_PATH",
+                         networkDefinitionPath = "NETWORK_DEF_PATH",
+                         jsonConfigPath = "JSON_CONFIG_PATH";
             Console.WriteLine("USAGE:");
             Console.WriteLine();
             Console.WriteLine("  {0} [-{1}|-{2}] [OPTIONS] {3} {4}",
                               AppDomain.CurrentDomain.FriendlyName,
                               ShortClassificationOption,
                               ShortRegressionOption,
-                              LearningSetPath,
-                              NetworkDefinitionPath);
+                              learningSetPath,
+                              networkDefinitionPath);
+            Console.WriteLine("  {0} {1}", AppDomain.CurrentDomain.FriendlyName, jsonConfigPath);
             Console.WriteLine();
             Console.WriteLine("WHERE:");
             Console.WriteLine();
-            Console.WriteLine("    {0,-24} is path to CSV file with learning set.", LearningSetPath);
+            Console.WriteLine("    {0,-24} is path to CSV file with learning set.", learningSetPath);
             Console.WriteLine();
-            Console.WriteLine("    {0,-24} is path to text file with neural network definition.", NetworkDefinitionPath);
+            Console.WriteLine("    {0,-24} is path to text file with neural network definition.", networkDefinitionPath);
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1}", ShortClassificationOption, LongClassificationOption);
             Console.WriteLine("          Choose classification problem solver.");
             Console.WriteLine();
             Console.WriteLine("    -{0}, --{1}", ShortRegressionOption, LongRegressionOption);
             Console.WriteLine("          Choose regression problem solver.");
+            Console.WriteLine();
+            Console.WriteLine("    {0,-24} is path to JSON configuration file path.", jsonConfigPath);
             Console.WriteLine();
             Console.WriteLine("OPTIONS:");
             Console.WriteLine();
