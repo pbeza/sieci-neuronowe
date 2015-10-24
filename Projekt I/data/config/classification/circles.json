@@ -1,0 +1,9 @@
+﻿{
+    "classification"    : true,
+    "iterations"        : 1000000,
+    "momentum"          : 0.1,
+    "learningRate"      : 0.01,
+    "learningPath"      : ".\\data\\samples\\classification\\data.circles.train.1000.csv",
+    "testingPath"       : ".\\data\\samples\\classification\\data.circles.test.1000.csv",
+    "networkPath"       : ".\\data\\neural_networks\\classification\\circles.txt"
+}

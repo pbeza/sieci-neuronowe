@@ -73,6 +73,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="data\config\regression\multimodal.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="data\config\regression\cube.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="data\samples\classification\data.circles.test.100.csv">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -334,6 +340,12 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="data\neural_networks\regression\multimodal.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="data\neural_networks\regression\cube.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="data\samples\classification\Circles.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -392,8 +404,6 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="data\config\regression\" />
-    <Folder Include="data\neural_networks\regression\" />
     <Folder Include="data\regression\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

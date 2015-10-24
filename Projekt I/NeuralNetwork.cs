@@ -1,41 +1,61 @@
-﻿using Encog;
-using Encog.ML;
-using Encog.ML.Data;
-using Encog.ML.Data.Basic;
-using Encog.ML.Data.Versatile;
-using Encog.ML.Data.Versatile.Columns;
-using Encog.ML.Data.Versatile.Sources;
-using Encog.ML.Factory;
-using Encog.ML.Model;
-using Encog.Neural.Networks;
-using Encog.Neural.Networks.Training.Propagation.Back;
-using Encog.Util.CSV;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-
-namespace sieci_neuronowe
+﻿namespace sieci_neuronowe
 {
+    #region
+
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text;
+
+    using Encog;
+    using Encog.ML;
+    using Encog.ML.Data;
+    using Encog.ML.Data.Basic;
+    using Encog.ML.Data.Versatile;
+    using Encog.ML.Data.Versatile.Columns;
+    using Encog.ML.Data.Versatile.Sources;
+    using Encog.ML.Factory;
+    using Encog.ML.Model;
+    using Encog.Neural.Networks;
+    using Encog.Neural.Networks.Training.Propagation.Back;
+    using Encog.Util.CSV;
+
+    #endregion
+
     public class NeuralNetwork
     {
         private const string FirstColumn = "x";
+
         private const string SecondColumn = "y";
+
         private const string PredictColumn = "cls";
+
         private const string GeneratedImagePath = @".\area_classification.bmp";
+
         private const string TrainingErrorDataPath = @".\training_error_data.txt";
+
         private const string VerificationErrorDataPath = @".\verification_error_data.txt";
+
         private const int RandomnessSeed = 1001;
+
         private const double ValidationPercent = 0.3;
+
         private const double LearnRate = 0.0003;
-        private const int BackpropagationBatchSize = 1;
+
         private const int ImageResolutionX = 1024;
+
         private const int ImageResolutionY = 1024;
+
         private const bool IfShuffle = true;
+
         private readonly string learningPath;
+
         private readonly string logOutputPath;
+
         private readonly BasicNetwork neuralNetwork;
+
         private readonly string testingPath;
+
         private readonly ArgsParser parser;
 
         public NeuralNetwork(ArgsParser inParser, BasicNetwork neuralNetwork)
@@ -59,8 +79,8 @@ namespace sieci_neuronowe
             var csvLearningDataSource = new CSVDataSource(learningPath, true, CSVFormat.DecimalPoint);
             var problemType = parser.Problem;
             var dataSet = problemType == ArgsParser.ProblemType.Regression
-                          ? PrepareRegressionDataSet(csvLearningDataSource)
-                          : PrepareClassificationDataSet(csvLearningDataSource);
+                              ? PrepareRegressionDataSet(csvLearningDataSource)
+                              : PrepareClassificationDataSet(csvLearningDataSource);
             csvLearningDataSource.Close();
 
             // Create feedforward neural network as the model type. MLMethodFactory.TYPE_FEEDFORWARD.
@@ -94,10 +114,12 @@ namespace sieci_neuronowe
 
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
-            var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, LearnRate, this.parser.Momentum) { BatchSize = BackpropagationBatchSize };
+            var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, LearnRate, this.parser.Momentum);
+            backpropagation.BatchSize = 1;
 
             var iterationsNumber = parser.NumberOfIterations;
-            for (var i = 0; i < iterationsNumber; i++)
+            int i;
+            for (i = 0; i < iterationsNumber; i++)
             {
                 backpropagation.Iteration();
                 if (Console.KeyAvailable && Console.ReadKey().Key == ConsoleKey.Escape)
@@ -108,7 +130,8 @@ namespace sieci_neuronowe
                 if (i % 100 == 0)
                 {
                     trainingErrorWriter.WriteLine(this.CalcError(this.neuralNetwork, trainingModel.TrainingDataset));
-                    verificationErrorWriter.WriteLine(this.CalcError(this.neuralNetwork, trainingModel.ValidationDataset));
+                    verificationErrorWriter.WriteLine(
+                        this.CalcError(this.neuralNetwork, trainingModel.ValidationDataset));
                 }
 
                 if (i % (iterationsNumber / 10) != 0)
@@ -121,6 +144,14 @@ namespace sieci_neuronowe
                 Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, err);
             }
 
+            Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, backpropagation.Error);
+            Console.WriteLine(
+                "Training set error:   {0}",
+                this.CalcError(this.neuralNetwork, trainingModel.TrainingDataset));
+            Console.WriteLine(
+                "Validation set error: {0}",
+                this.CalcError(this.neuralNetwork, trainingModel.ValidationDataset));
+
             trainingErrorWriter.Close();
             verificationErrorWriter.Close();
 
@@ -128,7 +159,8 @@ namespace sieci_neuronowe
             var usedMethod = (BasicNetwork)backpropagation.Method;
 
             // Use a 5-fold cross-validated train.  Return the best method found.
-            // var usedMethod = (BasicNetwork)trainingModel.Crossvalidate(5, true);
+            // var temp = (BasicNetwork)trainingModel.Crossvalidate(10, false);
+            // PrintWeights(temp, writetext);
 
             // Display our normalization parameters.
             var normHelper = dataSet.NormHelper;
@@ -152,25 +184,41 @@ namespace sieci_neuronowe
             EncogFramework.Instance.Shutdown();
         }
 
-        public static int ActualCategory(IMLData pt)
+        public static int ClosestCategory(IMLData pt, out float degree)
+        {
+            int best = 0;
+            double sum = 0.0;
+            for (var i = 0; i < pt.Count; i++)
+            {
+                if (pt[i] > pt[best])
+                {
+                    best = i;
+                }
+
+                sum += Math.Max(Math.Min(pt[i], 1.0), 0.0);
+            }
+
+            degree = (float)(2 * pt[best] - sum);
+            degree = Math.Max(Math.Min(degree, 1.0f), 0.0f);
+            return best;
+        }
+
+        public static int ActualCategory(IMLData pt, double goodEnough = 0.9)
         {
             // Returns index of the value at which pt is almost 1 if there is exactly one such value
             // Otherwise returns -1
-            const double GoodEnough = 0.9;
             int category = -1;
             for (var i = 0; i < pt.Count; i++)
             {
-                if (pt[i] > GoodEnough)
+                if (pt[i] > goodEnough)
                 {
                     if (category >= 0)
                     {
                         return -1;
                     }
                     category = i;
-                    continue;
                 }
-
-                if (pt[i] > -GoodEnough)
+                else if (pt[i] > -goodEnough)
                 {
                     return -1;
                 }
@@ -256,6 +304,17 @@ namespace sieci_neuronowe
 
         private static void PrintWeights(BasicNetwork network, TextWriter writer)
         {
+            writer.WriteLine("# Biases:");
+            for (var i = 0; i < network.LayerCount - 1; i++)
+            {
+                if (network.IsLayerBiased(i))
+                {
+                    writer.Write("{0} ", network.GetLayerBiasActivation(i));
+                }
+            }
+
+            writer.WriteLine();
+
             for (var i = 0; i < network.LayerCount - 1; i++)
             {
                 var thisLayerCount = network.GetLayerNeuronCount(i);
@@ -265,7 +324,7 @@ namespace sieci_neuronowe
                 {
                     for (var k = 0; k < nextLayerCount; k++)
                     {
-                        writer.Write("{0:F5} ", network.GetWeight(i, j, k));
+                        writer.Write("{0} ", network.GetWeight(i, j, k));
                     }
 
                     writer.WriteLine();
@@ -303,19 +362,17 @@ namespace sieci_neuronowe
 
             while (csv.Next())
             {
-                var x = csv.GetDouble(0);
-                var y = csv.GetDouble(1);
                 var correct = -1;
                 if (csv.ColumnCount > 2)
                 {
                     correct = (int)csv.GetDouble(2);
                 }
 
-                var data = new BasicMLData(new[] { x, y });
+                var data = new BasicMLData(2);
                 helper.NormalizeInputVector(new[] { csv.Get(0), csv.Get(1) }, data.Data, false);
                 var output = usedMethod.Compute(data);
                 var computed = ActualCategory(output);
-                results.Add(new ClassifiedPoint(x, y, computed, correct));
+                results.Add(new ClassifiedPoint(data[0], data[1], computed, correct));
             }
 
             csv.Close();
@@ -338,14 +395,20 @@ namespace sieci_neuronowe
 
             while (csv.Next())
             {
-                var x = csv.GetDouble(0);
+                var arrString = new string[csv.ColumnCount];
+                for (int index = 0; index < arrString.Length; index++)
+                {
+                    arrString[index] = csv.Get(index);
+                }
 
-                var data = new BasicMLData(new[] { x });
-                helper.NormalizeInputVector(new[] { csv.Get(0) }, data.Data, false);
+                var data = new BasicMLData(arrString.Length);
+                helper.NormalizeInputVector(arrString, data.Data, false);
                 var output = usedMethod.Compute(data);
                 var outstr = helper.DenormalizeOutputVectorToString(output);
-                var y = double.Parse(outstr[0]);
-                results.Add(new ClassifiedPoint(x, y, -1, -1));
+                var computed = double.Parse(outstr[0]);
+                var correct = csv.ColumnCount > 1 ? csv.GetDouble(1) : 0.0;
+                var y = computed;
+                results.Add(new ClassifiedPoint(data[0], y, -1, correct));
             }
 
             csv.Close();

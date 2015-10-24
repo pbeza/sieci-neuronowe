@@ -15,7 +15,7 @@ namespace sieci_neuronowe
         public const string DefaultRegressionLearningFilePath = @".\data\samples\regression\data.xsq.train.csv";
         public const string DefaultRegressionTestingFilePath = @".\data\samples\regression\data.xsq.test.csv";
         public const string DefaultNeuralNetworkDefinitionFilePath = @".\data\neural_networks\example.txt";
-        public const string DefaultConfigFile = @".\data\config\classification\circles.json";
+        public const string DefaultConfigFile = @".\data\config\regression\multimodal.json";
         public const string ClassificationJsonKey = "classification";
         public const string IterationsJsonKey = "iterations";
         public const string MomentumJsonKey = "momentum";

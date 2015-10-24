@@ -1,0 +1,9 @@
+﻿{
+    "classification"    : false,
+    "iterations"        : 10000,
+    "momentum"          : 0.1,
+    "learningRate"      : 0.01,
+    "learningPath"      : ".\\data\\samples\\regression\\data.cube.train.1000.csv",
+    "testingPath"       : ".\\data\\samples\\regression\\data.cube.test.1000.csv",
+    "networkPath"       : ".\\data\\neural_networks\\regression\\cube.txt"
+}

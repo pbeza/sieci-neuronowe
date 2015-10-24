@@ -3,11 +3,11 @@
     public struct ClassifiedPoint
     {
         public int Category;
-        public int Correct;
+        public double Correct;
         public double X;
         public double Y;
 
-        public ClassifiedPoint(double x, double y, int category, int correct)
+        public ClassifiedPoint(double x, double y, int category, double correct)
         {
             X = x;
             Y = y;

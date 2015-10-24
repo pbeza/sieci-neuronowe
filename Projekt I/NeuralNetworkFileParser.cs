@@ -116,7 +116,7 @@ namespace sieci_neuronowe
             var splitted = _currentLine.Split();
             if (splitted.Length != TotalLayersNumber)
             {
-                var msg = string.Format("Number of all layers is {0} and number of activation functions' names is {1}. They must be equal.", TotalLayersNumber, TotalLayersNumber);
+                var msg = string.Format("Number of all layers is {0} and number of activation functions' names is {1}. They must be equal.", splitted.Length, TotalLayersNumber);
                 ThrowErrorFileLoadFile(msg);
             }
             foreach (var activationFunctionName in splitted)
@@ -127,6 +127,11 @@ namespace sieci_neuronowe
 
         private void SetListOfLayersBiases()
         {
+            if (_indicesOfBiasDefinedLayers.Count == 0)
+            {
+                return;
+            }
+
             SetFirstNotIgnoredLineAsCurrentLine("Unexpected end of file. File does NOT specify layers' biases.");
             SetBiasesForEveryNetworkLayerFromCurrentLine();
         }
