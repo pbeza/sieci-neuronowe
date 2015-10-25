@@ -4,6 +4,7 @@
 
     using System;
     using System.Collections.Generic;
+    using System.Globalization;
     using System.IO;
     using System.Text;
 
@@ -129,9 +130,14 @@
 
                 if (i % 100 == 0)
                 {
-                    trainingErrorWriter.WriteLine(this.CalcError(this.neuralNetwork, trainingModel.TrainingDataset));
-                    verificationErrorWriter.WriteLine(
-                        this.CalcError(this.neuralNetwork, trainingModel.ValidationDataset));
+                    // Must be separated with a '.', not a ','
+
+                    var trainingError = this.CalcError(this.neuralNetwork, trainingModel.TrainingDataset);
+                    var trainingStr = trainingError.ToString(CultureInfo.InvariantCulture);
+                    var verificationError = this.CalcError(this.neuralNetwork, trainingModel.ValidationDataset);
+                    var verificationStr = verificationError.ToString(CultureInfo.InvariantCulture);
+                    trainingErrorWriter.WriteLine("{0},{1}", i, trainingStr);
+                    verificationErrorWriter.WriteLine("{0},{1}", i, verificationStr);
                 }
 
                 if (i % (iterationsNumber / 10) != 0)
