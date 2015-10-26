@@ -9,6 +9,8 @@ using System.Text.RegularExpressions;
 
 namespace sieci_neuronowe
 {
+    using System.Globalization;
+
     public class NeuralNetworkFileParser
     {
         private const char TextSeparator = ' ';
@@ -149,7 +151,9 @@ namespace sieci_neuronowe
 
         private BasicNetwork AddAllWeightsToConstructedNeuralNetwork()
         {
-            int processedLayers = 0, // layer no. 0 is input layer
+
+            // layer no. 0 is input layer
+            int processedLayers = 0,
                 processedNeuronsWithinLayer = 0,
                 processedNotIgnoredLines = 0,
                 numberOfNeuronsInCurrentLayer = _neuronsInLayers[processedLayers],
@@ -166,27 +170,40 @@ namespace sieci_neuronowe
                     var msg = string.Format("Too many neural layers. Number of processed layers is {0}. Declared number of layers is {1}.", processedLayers, TotalLayersNumber);
                     ThrowErrorFileLoadFile(msg);
                 }
+
+                if (processedLayers == 0 && _currentLine.Split(',').Length == _neuralNetwork.EncodedArrayLength())
+                {
+                    Console.WriteLine("Found weight dump. Decoding {0} weights.", _neuralNetwork.EncodedArrayLength());
+                    var dumpedWeights = Array.ConvertAll(
+                        _currentLine.Split(','),
+                        (input => double.Parse(input, CultureInfo.InvariantCulture)));
+                    _neuralNetwork.DecodeFromArray(dumpedWeights);
+                    return _neuralNetwork;
+                }
+
                 var weightsForOneVertex = GetWeightsFromCurrentLine();
                 if (weightsForOneVertex.Length != numberOfNeuronsInNextLayer)
                 {
-                    var msg = string.Format("Number of weights for layer no. {0} should equal {1} (is {2}).",
-                                            processedLayers, numberOfNeuronsInNextLayer, weightsForOneVertex.Length);
+                    var msg = string.Format(
+                        "Number of weights for layer no. {0} should equal {1} (is {2}).",
+                        processedLayers,
+                        numberOfNeuronsInNextLayer,
+                        weightsForOneVertex.Length);
                     ThrowErrorFileLoadFile(msg);
                 }
                 for (var toNeuronNumber = 0; toNeuronNumber < numberOfNeuronsInNextLayer; toNeuronNumber++)
                 {
-                    _neuralNetwork.AddWeight(processedLayers, processedNeuronsWithinLayer, toNeuronNumber, weightsForOneVertex[toNeuronNumber]);
+                    _neuralNetwork.SetWeight(processedLayers, processedNeuronsWithinLayer, toNeuronNumber, weightsForOneVertex[toNeuronNumber]);
                 }
                 if (++processedNeuronsWithinLayer != numberOfNeuronsInCurrentLayer) continue;
                 if (++processedLayers == TotalLayersNumber - 1)
                     break;
-                processedNeuronsWithinLayer = 0;
+                // Bias is treated like a neuron in layer below
                 numberOfNeuronsInCurrentLayer = _neuronsInLayers[processedLayers];
                 numberOfNeuronsInNextLayer = _neuronsInLayers[processedLayers + 1];
             }
 
             // Check if file ended too early
-
             if (processedNotIgnoredLines != GetTotalNumberOfExpectedNotIgnoredLines() || processedLayers != TotalLayersNumber - 1)
                 ThrowErrorFileLoadFile("Unexpected end of file. Wrong file format.");
 
@@ -255,10 +272,15 @@ namespace sieci_neuronowe
             return Regex.Replace(line, @"\s+", " ");
         }
 
-        private void ThrowErrorFileLoadFile(string errorMsg)
+        private void ThrowErrorFileLoadFile(string errorMsg, bool critical = false)
         {
             var msgPrefix = string.Format("Error in line {0} reading neural network file. Make sure you have correct file's format. ", _currentLineNumber);
-            throw new FileLoadException(msgPrefix + errorMsg);
+            if (critical)
+            {
+                throw new FileLoadException(msgPrefix + errorMsg);
+            }
+
+            Console.WriteLine(msgPrefix + errorMsg);
         }
 
         private IActivationFunction CreateActivationFunctionFromString(string activationFunctionName)
