@@ -25,6 +25,9 @@ namespace sieci_neuronowe
         private IList<double> _layersBiases = new List<double>();
         private string _currentLine;
         private int _currentLineNumber;
+
+        private readonly Random random;
+
         private int TotalLayersNumber { get { return _neuronsInLayers.Count; } }
 
         private enum ActivationFunctionsNames
@@ -44,6 +47,7 @@ namespace sieci_neuronowe
         public NeuralNetworkFileParser(string path)
         {
             _fileContentEnumerator = File.ReadLines(path).GetEnumerator();
+            random = new Random();
         }
 
         public BasicNetwork Parse()
@@ -250,16 +254,14 @@ namespace sieci_neuronowe
 
         private double[] GetWeightsFromCurrentLine(int expectedNumber)
         {
-            var rng = new Random();
             var weights = new double[expectedNumber];
             var splitLine = _currentLine.Split(TextSeparator);
             bool ok = splitLine.Length == expectedNumber;
             for (int index = 0; index < splitLine.Length; index++)
             {
-                double val;
                 if (!double.TryParse(splitLine[index], out weights[index]))
                 {
-                    weights[index] = (rng.NextDouble() * 2.0)-1.0;
+                    weights[index] = (this.random.NextDouble() * 2.0)-1.0;
                     ok = false;
                 }
             }

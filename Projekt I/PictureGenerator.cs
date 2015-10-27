@@ -122,11 +122,6 @@
             double coordOffsetX = centerX - toRight;
             double coordOffsetY = centerY - toBottom;
 
-            var testX1 = (xmin - coordOffsetX) / stepX;
-            var testX2 = (xmax - coordOffsetX) / stepX;
-            var testY1 = (ymin - coordOffsetY) / stepY;
-            var testY2 = (ymax - coordOffsetY) / stepY;
-
             for (var j = 0; j < resolutionX; j++)
             {
                 var x = j * stepX + coordOffsetX;

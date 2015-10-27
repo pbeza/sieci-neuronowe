@@ -140,7 +140,7 @@
                     verificationErrorWriter.WriteLine("{0},{1}", i, verificationStr);
                 }
 
-                if (i % (iterationsNumber / 10) != 0)
+                if (iterationsNumber > 10 && i % (iterationsNumber / 10) != 0)
                 {
                     continue;
                 }
@@ -288,7 +288,38 @@
             return dataSet;
         }
 
-        private static void PrintPoints(IEnumerable<ClassifiedPoint> points, StreamWriter writetext)
+        private void PrintPoints(IEnumerable<ClassifiedPoint> points, StreamWriter writetext)
+        {
+            if (parser.Problem == ArgsParser.ProblemType.Classification)
+            {
+                PrintClassificationPoints(points, writetext);
+            }
+            else
+            {
+                PrintRegressionPoints(points, writetext);
+            }
+        }
+
+        private static void PrintRegressionPoints(IEnumerable<ClassifiedPoint> points, StreamWriter writetext)
+        {
+            foreach (var point in points)
+            {
+                var result = new StringBuilder();
+
+                result.AppendFormat(
+                    "({0: 0.00;-0.00}) -> predicted: {1}",
+                    point.X,
+                    point.Y);
+                if (point.Correct >= 0)
+                {
+                    result.AppendFormat("(correct: {0})", point.Correct);
+                }
+
+                writetext.WriteLine(result);
+            }
+        }
+
+        private static void PrintClassificationPoints(IEnumerable<ClassifiedPoint> points, StreamWriter writetext)
         {
             foreach (var point in points)
             {
