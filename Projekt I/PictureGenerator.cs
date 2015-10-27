@@ -101,8 +101,11 @@
             int resolutionY)
         {
             var bmp = new Bitmap(resolutionX, resolutionY);
-            var lck = bmp.LockBits(new Rectangle(0, 0, resolutionX, resolutionY), ImageLockMode.WriteOnly,
-                PixelFormat.Format32bppArgb);
+            var g = Graphics.FromImage(bmp);
+            var greenPen = Pens.Green;
+            var redPen = Pens.Red;
+            //var lck = bmp.LockBits(new Rectangle(0, 0, resolutionX, resolutionY), ImageLockMode.WriteOnly,
+            //    PixelFormat.Format32bppArgb);
             List<ClassifiedPoint> known = points.FindAll(p => Math.Abs(p.Correct) > 0.000001);
             var xmin = known.Min(p => p.X);
             var xmax = known.Max(p => p.X);
@@ -122,6 +125,7 @@
             double coordOffsetX = centerX - toRight;
             double coordOffsetY = centerY - toBottom;
 
+            List<Point> toDraw = new List<Point>(resolutionX);
             for (var j = 0; j < resolutionX; j++)
             {
                 var x = j * stepX + coordOffsetX;
@@ -130,23 +134,28 @@
                 var y = double.Parse(stringChosen);
                 var colorRGB = RGBFromInt(1);
                 var i = (int)((y - coordOffsetY) / stepY);
-                if (i >= 0 && i < lck.Height && j >= 0 && j < lck.Width)
+                if (i >= 0 && i < resolutionY && j >= 0 && j < resolutionX)
                 {
-                    Marshal.WriteInt32(lck.Scan0 + (i * lck.Width + j) * 4, colorRGB);
+                    toDraw.Add(new Point(j, i));
+                    //Marshal.WriteInt32(lck.Scan0 + (i * lck.Width + j) * 4, colorRGB);
                 }
             }
 
-            bmp.UnlockBits(lck);
+            for (int index = 0; index < toDraw.Count - 1; index++)
+            {
+                g.DrawLine(redPen, toDraw[index], toDraw[index + 1]);
+            }
+
+            //bmp.UnlockBits(lck);
             if (!known.Any())
             {
+                g.Dispose();
                 bmp.Save(path);
                 return;
             }
 
             known.Sort((left, right) => (left.X < right.X ? (right.X > left.X ? 1 : 0 ) : -1));
-            var g = Graphics.FromImage(bmp);
-            var pen = Pens.Green;
-
+            
             int iLast = (int)((known[0].Correct - coordOffsetY) / stepY);
             int jLast = (int)((known[0].X - coordOffsetX) / stepX);
             foreach (var pt in known)
@@ -156,11 +165,12 @@
 
                 var i = (int)((y - coordOffsetY) / stepY);
                 var j = (int)((x - coordOffsetX) / stepX);
-                g.DrawLine(pen, jLast, iLast, j, i);
+                g.DrawLine(greenPen, jLast, iLast, j, i);
                 iLast = i;
                 jLast = j;
             }
 
+            g.Dispose();
             bmp.Save(path);
         }
 

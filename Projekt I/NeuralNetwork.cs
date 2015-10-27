@@ -39,15 +39,9 @@
 
         private const int RandomnessSeed = 1001;
 
-        private const double ValidationPercent = 0.3;
-
-        private const double LearnRate = 0.0003;
-
         private const int ImageResolutionX = 1024;
 
         private const int ImageResolutionY = 1024;
-
-        private const bool IfShuffle = true;
 
         private readonly string learningPath;
 
@@ -107,7 +101,7 @@
             // Hold back some data for a final validation.
             // Shuffle the data into a random ordering.
 
-            trainingModel.HoldBackValidation(ValidationPercent, IfShuffle, RandomnessSeed);
+            trainingModel.HoldBackValidation(0.1, true, RandomnessSeed);
 
             // Choose whatever is the default training type for this model.
 
@@ -115,8 +109,9 @@
 
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
-            var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, this.parser.LearningRate, this.parser.Momentum);
+            var backpropagation = new BackProp(this.neuralNetwork, dataSet, this.parser.LearningRate, this.parser.Momentum);
             backpropagation.BatchSize = 1;
+            backpropagation.ErrorFunction = new SquareErrorFunction();
 
             var iterationsNumber = parser.NumberOfIterations;
             int i;
@@ -413,13 +408,6 @@
             }
 
             csv.Close();
-        }
-
-        public static double[] DataToArray(IMLData data)
-        {
-            double[] ret = new double[data.Count];
-            data.CopyTo(ret, 0, data.Count);
-            return ret;
         }
 
         private static void TestRegressionData(

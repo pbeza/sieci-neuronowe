@@ -155,7 +155,6 @@ namespace sieci_neuronowe
 
         private BasicNetwork AddAllWeightsToConstructedNeuralNetwork()
         {
-
             // layer no. 0 is input layer
             int processedLayers = 0,
                 processedNeuronsWithinLayer = 0,
@@ -181,25 +180,18 @@ namespace sieci_neuronowe
                     var dumpedWeights = Array.ConvertAll(
                         _currentLine.Split(','),
                         (input => double.Parse(input, CultureInfo.InvariantCulture)));
+                    /*
+                    // Scramble a bit to test if it will unfuck itself
+                    dumpedWeights = Array.ConvertAll(
+                        dumpedWeights,
+                        x => x * (0.0 + (this.random.NextDouble() - 0.5) / 50) + (random.NextDouble() - 0.5));\
+                     */
                     _neuralNetwork.DecodeFromArray(dumpedWeights);
                     return _neuralNetwork;
                 }
 
-                var weightsForOneVertex = GetWeightsFromCurrentLine(numberOfNeuronsInNextLayer);
-                if (weightsForOneVertex.Length == 0)
-                {
-                    weightsForOneVertex = Enumerable.Repeat(1.0, numberOfNeuronsInNextLayer).ToArray();
-                }
-
-                if (weightsForOneVertex.Length != numberOfNeuronsInNextLayer)
-                {
-                    var msg = string.Format(
-                        "Number of weights for layer no. {0} should equal {1} (is {2}).",
-                        processedLayers,
-                        numberOfNeuronsInNextLayer,
-                        weightsForOneVertex.Length);
-                    ThrowErrorFileLoadFile(msg);
-                }
+                var needWeights = numberOfNeuronsInNextLayer;
+                var weightsForOneVertex = GetWeightsFromCurrentLine(needWeights);
                 for (var toNeuronNumber = 0; toNeuronNumber < numberOfNeuronsInNextLayer; toNeuronNumber++)
                 {
                     _neuralNetwork.SetWeight(processedLayers, processedNeuronsWithinLayer, toNeuronNumber, weightsForOneVertex[toNeuronNumber]);

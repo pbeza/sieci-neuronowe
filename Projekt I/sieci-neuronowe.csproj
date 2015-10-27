@@ -62,6 +62,8 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BackProp.cs" />
+    <Compile Include="GradWorker.cs" />
     <Compile Include="NeuralNetworkFileParser.cs" />
     <Compile Include="NeuralNetwork.cs" />
     <Compile Include="ArgsParser.cs" />
@@ -69,6 +71,7 @@
     <Compile Include="PictureGenerator.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SquareErrorFunction.cs" />
     <Compile Include="StreamStatusReportable.cs" />
   </ItemGroup>
   <ItemGroup>
