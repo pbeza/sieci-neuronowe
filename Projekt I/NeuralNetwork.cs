@@ -115,7 +115,7 @@
 
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
-            var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, LearnRate, this.parser.Momentum);
+            var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, this.parser.LearningRate, this.parser.Momentum);
             backpropagation.BatchSize = 1;
 
             var iterationsNumber = parser.NumberOfIterations;
