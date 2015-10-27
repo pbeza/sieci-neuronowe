@@ -18,27 +18,35 @@
     using Encog.Neural.Networks.Training.Propagation;
     using Encog.Util;
     using Encog.Util.Concurrency;
-    using Encog.Util.Logging;
     using Encog.Util.Validate;
 
     #endregion
 
-    public sealed class BackProp : BasicTraining, ITrain, IMultiThreadable, IBatchSize
+    public sealed class StochasticBackProp : BasicTraining, ITrain, IMultiThreadable, IBatchSize
     {
-        private readonly Random rng;
+        public const String PropertyLastDelta = "LAST_DELTA";
+
+        private readonly FlatNetwork _flat;
+
         private readonly IMLDataSet _indexable;
 
         private readonly double[] _lastGradient;
 
         private readonly IContainsFlat _network;
 
-        private readonly FlatNetwork _flat;
-
         private readonly IMLDataSet _training;
 
-        internal double[] Gradients;
+        private readonly Random rng;
+
+        private double[] _flatSpot;
 
         private int _iteration;
+
+        private double[] _lastDelta;
+
+        private double _learningRate;
+
+        private double _momentum;
 
         private int _numThreads;
 
@@ -48,12 +56,78 @@
 
         private GradWorker[] _workers;
 
-        public bool FixFlatSpot { get; set; }
+        internal double[] Gradients;
 
-        private double[] _flatSpot;
+        public StochasticBackProp(IContainsFlat network, IMLDataSet training, double learnRate, double momentum)
+            : base(TrainingImplementationType.Iterative)
+        {
+            _network = network;
+            _flat = network.Flat;
+            _training = training;
+
+            Gradients = new double[_flat.Weights.Length];
+            _lastGradient = new double[_flat.Weights.Length];
+
+            _indexable = training;
+            _numThreads = 0;
+            _reportedException = null;
+            FixFlatSpot = true;
+            ErrorFunction = new LinearErrorFunction();
+            rng = new Random();
+
+            ValidateNetwork.ValidateMethodToData(network, training);
+            _momentum = momentum;
+            _learningRate = learnRate;
+            _lastDelta = new double[Network.Flat.Weights.Length];
+
+            errorBuffer = new ErrorBuffer(training.Count);
+        }
+
+        public bool FixFlatSpot { get; set; }
 
         public IErrorFunction ErrorFunction { get; set; }
 
+        public double[] LastDelta
+        {
+            get
+            {
+                return _lastDelta;
+            }
+        }
+
+        #region ILearningRate Members
+
+        public double LearningRate
+        {
+            get
+            {
+                return _learningRate;
+            }
+            set
+            {
+                _learningRate = value;
+            }
+        }
+
+        #endregion
+
+        #region IMomentum Members
+
+        public double Momentum
+        {
+            get
+            {
+                return _momentum;
+            }
+            set
+            {
+                _momentum = value;
+            }
+        }
+
+        #endregion
+
+        public int BatchSize { get; set; }
 
         public int ThreadCount
         {
@@ -67,9 +141,88 @@
             }
         }
 
+        public override sealed bool CanContinue
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        public override sealed TrainingContinuation Pause()
+        {
+            var result = new TrainingContinuation { TrainingType = GetType().Name };
+            result.Set(PropertyLastDelta, _lastDelta);
+            return result;
+        }
+
+        public override sealed void Resume(TrainingContinuation state)
+        {
+            if (!IsValidResume(state))
+            {
+                throw new TrainingError("Invalid training resume data length");
+            }
+
+            _lastDelta = (double[])state.Get(PropertyLastDelta);
+        }
+
         public void RollIteration()
         {
             _iteration++;
+        }
+
+        
+
+private ErrorBuffer errorBuffer;
+
+        private int GetRandomIndex()
+        {
+            return rng.Next(Training.Count);
+        }
+
+        private void ProcessOne()
+        {
+            if (_workers == null)
+            {
+                Init();
+            }
+
+            _workers[0].CalculateError.Reset();
+
+            var randomNumber = GetRandomIndex();
+            _workers[0].Run(randomNumber);
+
+            Learn();
+
+            double errorCur = _workers[0].CalculateError.Calculate();
+            this.Error = errorBuffer.AddError(errorCur);
+        }
+
+        public bool IsValidResume(TrainingContinuation state)
+        {
+            if (!state.Contents.ContainsKey(PropertyLastDelta))
+            {
+                return false;
+            }
+
+            if (!state.TrainingType.Equals(GetType().Name))
+            {
+                return false;
+            }
+
+            var d = (double[])state.Get(PropertyLastDelta);
+            return d.Length == ((IContainsFlat)Method).Flat.Weights.Length;
+        }
+
+        public double UpdateWeight(double[] gradients, double[] lastGradient, int index)
+        {
+            double delta = (gradients[index] * _learningRate) + (_lastDelta[index] * _momentum);
+            _lastDelta[index] = delta;
+            return delta;
+        }
+
+        public void InitOthers()
+        {
         }
 
         #region Train Members
@@ -86,37 +239,19 @@
         {
             try
             {
-                PreIteration();
-
                 RollIteration();
 
-                if (BatchSize == 0)
-                {
-                    ProcessPureBatch();
-                }
-                else
-                {
-                    ProcessBatches();
-                }
+                this.ProcessOne();
 
                 foreach (GradWorker worker in _workers)
                 {
                     EngineArray.ArrayCopy(_flat.Weights, 0, worker.Weights, 0, _flat.Weights.Length);
                 }
 
-                if (_flat.HasContext)
-                {
-                    CopyContexts();
-                }
-
                 if (_reportedException != null)
                 {
                     throw (new EncogError(_reportedException));
                 }
-
-                PostIteration();
-
-                EncogLogging.Log(EncogLogging.LevelInfo, "Training iterations done, error: " + Error);
             }
             catch (IndexOutOfRangeException ex)
             {
@@ -200,28 +335,6 @@
             Error = _totalError / _workers.Length;
         }
 
-        /// <summary>
-        /// Copy the contexts to keep them consistent with multithreaded training.
-        /// </summary>
-        ///
-        private void CopyContexts()
-        {
-            // copy the contexts(layer outputO from each group to the next group
-            for (int i = 0; i < (_workers.Length - 1); i++)
-            {
-                double[] src = _workers[i].Network.LayerOutput;
-                double[] dst = _workers[i + 1].Network.LayerOutput;
-                EngineArray.ArrayCopy(src, dst);
-            }
-
-            // copy the contexts from the final group to the real network
-            EngineArray.ArrayCopy(_workers[_workers.Length - 1].Network.LayerOutput, _flat.LayerOutput);
-        }
-
-        /// <summary>
-        /// Init the process.
-        /// </summary>
-        ///
         private void Init()
         {
             // fix flat spot, if needed
@@ -317,190 +430,5 @@
         }
 
         #endregion
-
-        private void ProcessPureBatch()
-        {
-            CalculateGradients();
-
-            if (_flat.Limited)
-            {
-                LearnLimited();
-            }
-            else
-            {
-                Learn();
-            }
-        }
-
-        private void ProcessBatches()
-        {
-            if (_workers == null)
-            {
-                Init();
-            }
-
-            if (_flat.HasContext)
-            {
-                _workers[0].Network.ClearContext();
-            }
-
-            _workers[0].CalculateError.Reset();
-
-            int lastLearn = 0;
-
-            for (int i = 0; i < Training.Count; i++)
-            {
-                var randomNumber = rng.Next(Training.Count);
-                _workers[0].Run(randomNumber);
-
-                lastLearn++;
-
-                if (lastLearn++ >= BatchSize)
-                {
-                    if (_flat.Limited)
-                    {
-                        LearnLimited();
-                    }
-                    else
-                    {
-                        Learn();
-                        lastLearn = 0;
-                    }
-                }
-            }
-
-            // handle any remaining learning
-            if (lastLearn > 0)
-            {
-                Learn();
-            }
-
-            this.Error = _workers[0].CalculateError.Calculate();
-        }
-
-        public int BatchSize { get; set; }
-
-        public const String PropertyLastDelta = "LAST_DELTA";
-
-        private double[] _lastDelta;
-
-        private double _learningRate;
-
-        private double _momentum;
-
-        public BackProp(IContainsFlat network, IMLDataSet training, double learnRate, double momentum)
-            : base(TrainingImplementationType.Iterative)
-        {
-            _network = network;
-            _flat = network.Flat;
-            _training = training;
-
-            Gradients = new double[_flat.Weights.Length];
-            _lastGradient = new double[_flat.Weights.Length];
-
-            _indexable = training;
-            _numThreads = 0;
-            _reportedException = null;
-            FixFlatSpot = true;
-            ErrorFunction = new LinearErrorFunction();
-            rng = new Random(1001);
-
-            ValidateNetwork.ValidateMethodToData(network, training);
-            _momentum = momentum;
-            _learningRate = learnRate;
-            _lastDelta = new double[Network.Flat.Weights.Length];
-        }
-
-        public override sealed bool CanContinue
-        {
-            get
-            {
-                return true;
-            }
-        }
-
-        public double[] LastDelta
-        {
-            get
-            {
-                return _lastDelta;
-            }
-        }
-
-        #region ILearningRate Members
-
-        public double LearningRate
-        {
-            get
-            {
-                return _learningRate;
-            }
-            set
-            {
-                _learningRate = value;
-            }
-        }
-
-        #endregion
-
-        #region IMomentum Members
-
-        public double Momentum
-        {
-            get
-            {
-                return _momentum;
-            }
-            set
-            {
-                _momentum = value;
-            }
-        }
-
-        #endregion
-
-        public bool IsValidResume(TrainingContinuation state)
-        {
-            if (!state.Contents.ContainsKey(PropertyLastDelta))
-            {
-                return false;
-            }
-
-            if (!state.TrainingType.Equals(GetType().Name))
-            {
-                return false;
-            }
-
-            var d = (double[])state.Get(PropertyLastDelta);
-            return d.Length == ((IContainsFlat)Method).Flat.Weights.Length;
-        }
-
-        public override sealed TrainingContinuation Pause()
-        {
-            var result = new TrainingContinuation { TrainingType = GetType().Name };
-            result.Set(PropertyLastDelta, _lastDelta);
-            return result;
-        }
-
-        public override sealed void Resume(TrainingContinuation state)
-        {
-            if (!IsValidResume(state))
-            {
-                throw new TrainingError("Invalid training resume data length");
-            }
-
-            _lastDelta = (double[])state.Get(PropertyLastDelta);
-        }
-
-        public double UpdateWeight(double[] gradients, double[] lastGradient, int index)
-        {
-            double delta = (gradients[index] * _learningRate) + (_lastDelta[index] * _momentum);
-            _lastDelta[index] = delta;
-            return delta;
-        }
-
-        public void InitOthers()
-        {
-        }
     }
 }

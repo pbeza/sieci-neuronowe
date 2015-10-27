@@ -62,7 +62,8 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BackProp.cs" />
+    <Compile Include="ErrorBuffer.cs" />
+    <Compile Include="StochasticBackProp.cs" />
     <Compile Include="GradWorker.cs" />
     <Compile Include="NeuralNetworkFileParser.cs" />
     <Compile Include="NeuralNetwork.cs" />

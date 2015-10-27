@@ -39,7 +39,7 @@
 
         private readonly FlatNetwork _network;
 
-        private readonly BackProp _owner;
+        private readonly StochasticBackProp _owner;
 
         private readonly IMLDataSet _training;
 
@@ -53,7 +53,7 @@
 
         public GradWorker(
             FlatNetwork theNetwork,
-            BackProp theOwner,
+            StochasticBackProp theOwner,
             IMLDataSet theTraining,
             int theLow,
             int theHigh,
