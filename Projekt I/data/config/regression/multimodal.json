@@ -1,8 +1,8 @@
 ﻿{
     "classification"    : false,
     "iterations"        : 10000,
-    "momentum"          : 0.1,
-    "learningRate"      : 0.01,
+    "momentum"          : 0.5,
+    "learningRate"      : 0.1,
     "learningPath"      : ".\\data\\samples\\regression\\data.multimodal.train.1000.csv",
     "testingPath"       : ".\\data\\samples\\regression\\data.multimodal.test.1000.csv",
     "networkPath"       : ".\\data\\neural_networks\\regression\\multimodal.txt"

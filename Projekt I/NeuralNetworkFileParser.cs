@@ -181,7 +181,12 @@ namespace sieci_neuronowe
                     return _neuralNetwork;
                 }
 
-                var weightsForOneVertex = GetWeightsFromCurrentLine();
+                var weightsForOneVertex = GetWeightsFromCurrentLine(numberOfNeuronsInNextLayer);
+                if (weightsForOneVertex.Length == 0)
+                {
+                    weightsForOneVertex = Enumerable.Repeat(1.0, numberOfNeuronsInNextLayer).ToArray();
+                }
+
                 if (weightsForOneVertex.Length != numberOfNeuronsInNextLayer)
                 {
                     var msg = string.Format(
@@ -198,6 +203,7 @@ namespace sieci_neuronowe
                 if (++processedNeuronsWithinLayer != numberOfNeuronsInCurrentLayer) continue;
                 if (++processedLayers == TotalLayersNumber - 1)
                     break;
+                processedNeuronsWithinLayer = 0;
                 // Bias is treated like a neuron in layer below
                 numberOfNeuronsInCurrentLayer = _neuronsInLayers[processedLayers];
                 numberOfNeuronsInNextLayer = _neuronsInLayers[processedLayers + 1];
@@ -242,9 +248,28 @@ namespace sieci_neuronowe
             return totalNumberOfWeights;
         }
 
-        private double[] GetWeightsFromCurrentLine()
+        private double[] GetWeightsFromCurrentLine(int expectedNumber)
         {
-            var weights = Array.ConvertAll(_currentLine.Split(TextSeparator), double.Parse);
+            var rng = new Random();
+            var weights = new double[expectedNumber];
+            var splitLine = _currentLine.Split(TextSeparator);
+            bool ok = splitLine.Length == expectedNumber;
+            for (int index = 0; index < splitLine.Length; index++)
+            {
+                double val;
+                if (!double.TryParse(splitLine[index], out weights[index]))
+                {
+                    weights[index] = (rng.NextDouble() * 2.0)-1.0;
+                    ok = false;
+                }
+            }
+
+            if (!ok)
+            {
+                var msg = string.Format("Expected {0} weights, got {1}", expectedNumber, splitLine.Length);
+                ThrowErrorFileLoadFile(msg);
+            }
+
             return weights;
         }
 

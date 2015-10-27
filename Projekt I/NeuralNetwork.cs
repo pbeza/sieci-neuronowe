@@ -414,7 +414,8 @@
                 var computed = double.Parse(outstr[0]);
                 var correct = csv.ColumnCount > 1 ? csv.GetDouble(1) : 0.0;
                 var y = computed;
-                results.Add(new ClassifiedPoint(data[0], y, -1, correct));
+                // Nie znormalizowane
+                results.Add(new ClassifiedPoint(csv.GetDouble(0), y, -1, correct));
             }
 
             csv.Close();

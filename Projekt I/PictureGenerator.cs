@@ -106,8 +106,8 @@
             List<ClassifiedPoint> known = points.FindAll(p => Math.Abs(p.Correct) > 0.000001);
             var xmin = known.Min(p => p.X);
             var xmax = known.Max(p => p.X);
-            var ymin = known.Min(p => p.Y);
-            var ymax = known.Max(p => p.Y);
+            var ymin = known.Min(p => p.Correct);
+            var ymax = known.Max(p => p.Correct);
             const double padding = 1.5;
             double dx = xmax - xmin;
             double dy = ymax - ymin;
@@ -121,6 +121,12 @@
             double toBottom = padding * (ymax - centerY);
             double coordOffsetX = centerX - toRight;
             double coordOffsetY = centerY - toBottom;
+
+            var testX1 = (xmin - coordOffsetX) / stepX;
+            var testX2 = (xmax - coordOffsetX) / stepX;
+            var testY1 = (ymin - coordOffsetY) / stepY;
+            var testY2 = (ymax - coordOffsetY) / stepY;
+
             for (var j = 0; j < resolutionX; j++)
             {
                 var x = j * stepX + coordOffsetX;
@@ -135,21 +141,31 @@
                 }
             }
 
+            bmp.UnlockBits(lck);
+            if (!known.Any())
+            {
+                bmp.Save(path);
+                return;
+            }
+
+            known.Sort((left, right) => (left.X < right.X ? (right.X > left.X ? 1 : 0 ) : -1));
+            var g = Graphics.FromImage(bmp);
+            var pen = Pens.Green;
+
+            int iLast = (int)((known[0].Correct - coordOffsetY) / stepY);
+            int jLast = (int)((known[0].X - coordOffsetX) / stepX);
             foreach (var pt in known)
             {
                 var x = pt.X;
-                var y = pt.Y;
-                var colorRGB = RGBFromInt(2);
+                var y = pt.Correct;
 
                 var i = (int)((y - coordOffsetY) / stepY);
                 var j = (int)((x - coordOffsetX) / stepX);
-                if (i >= 0 && i < lck.Height && j >= 0 && j < lck.Width)
-                {
-                    Marshal.WriteInt32(lck.Scan0 + (((i * lck.Width) + j) * 4), colorRGB);
-                }
+                g.DrawLine(pen, jLast, iLast, j, i);
+                iLast = i;
+                jLast = j;
             }
 
-            bmp.UnlockBits(lck);
             bmp.Save(path);
         }
 
