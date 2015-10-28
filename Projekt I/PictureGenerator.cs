@@ -37,16 +37,25 @@
                 PixelFormat.Format32bppArgb);
             const double resolutionMult = 3.0;
             const double coordOffset = -1.5;
-            var stepX = resolutionMult / resolutionX;
-            var stepY = resolutionMult / resolutionY;
             int categoryCount = helper.OutputColumns.Count;
             bool dim = points.Any();
-            for (var i = 0; i < resolutionX; i++)
+            var xmin = points.Min(p => p.X);
+            var xmax = points.Max(p => p.X);
+            var ymin = points.Min(p => p.Y);
+            var ymax = points.Max(p => p.Y);
+            double stepX;
+            double stepY;
+            double coordOffsetX;
+            double coordOffsetY;
+            GetTransform(xmin, xmax, resolutionX, out stepX, out coordOffsetX);
+            GetTransform(ymin, ymax, resolutionY, out stepY, out coordOffsetY);
+
+            for (var i = 0; i < resolutionY; i++)
             {
-                var x = (i * stepX) + coordOffset;
-                for (var j = 0; j < resolutionY; j++)
+                var y = (i * stepY) + coordOffsetY;
+                for (var j = 0; j < resolutionX; j++)
                 {
-                    var y = (j * stepY) + coordOffset;
+                    var x = (j * stepX) + coordOffsetX;
                     BasicMLData arr = new BasicMLData(2);
                     arr[0] = x;
                     arr[1] = y;
@@ -107,23 +116,16 @@
             //var lck = bmp.LockBits(new Rectangle(0, 0, resolutionX, resolutionY), ImageLockMode.WriteOnly,
             //    PixelFormat.Format32bppArgb);
             List<ClassifiedPoint> known = points.FindAll(p => Math.Abs(p.Correct) > 0.000001);
-            var xmin = known.Min(p => p.X);
-            var xmax = known.Max(p => p.X);
-            var ymin = known.Min(p => p.Correct);
-            var ymax = known.Max(p => p.Correct);
-            const double padding = 1.5;
-            double dx = xmax - xmin;
-            double dy = ymax - ymin;
-            double resolutionMultX = padding * dx;
-            double resolutionMultY = padding * dy;
-            double stepX = resolutionMultX / resolutionX;
-            double stepY = resolutionMultY / resolutionY;
-            double centerX = (xmax + xmin) / 2;
-            double centerY = (ymax + ymin) / 2;
-            double toRight = padding * (xmax - centerX);
-            double toBottom = padding * (ymax - centerY);
-            double coordOffsetX = centerX - toRight;
-            double coordOffsetY = centerY - toBottom;
+            var xmin = points.Min(p => p.X);
+            var xmax = points.Max(p => p.X);
+            var ymin = points.Min(p => p.Correct);
+            var ymax = points.Max(p => p.Correct);
+            double stepX;
+            double stepY;
+            double coordOffsetX;
+            double coordOffsetY;
+            GetTransform(xmin, xmax, resolutionX, out stepX, out coordOffsetX);
+            GetTransform(ymin, ymax, resolutionY, out stepY, out coordOffsetY);
 
             List<Point> toDraw = new List<Point>(resolutionX);
             for (var j = 0; j < resolutionX; j++)
@@ -172,6 +174,17 @@
 
             g.Dispose();
             bmp.Save(path);
+        }
+
+        private static void GetTransform(double min, double max, int resolution, out double step, out double coordOffset)
+        {
+            const double padding = 1.5;
+            double d = max - min;
+            double resolutionMult = padding * d;
+            step = resolutionMult / resolution;
+            double center = (max + min) / 2;
+            double toMiddle = padding * (max - center);
+            coordOffset = center - toMiddle;
         }
 
         private static readonly Dictionary<int, Tuple<int, int, int>> colorMap =

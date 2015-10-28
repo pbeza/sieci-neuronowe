@@ -3,6 +3,9 @@
     #region
 
     using System;
+    using System.Linq;
+    using System.Runtime.InteropServices;
+    using System.Security.Cryptography;
     using System.Threading.Tasks;
 
     using Encog;
@@ -24,6 +27,47 @@
 
     public sealed class StochasticBackProp : BasicTraining, ITrain, IMultiThreadable, IBatchSize
     {
+        private class RandomIndexGenerator
+        {
+            private readonly int maxIndex;
+
+            private readonly RandomNumberGenerator hqRNG;
+
+            private readonly uint[] indices;
+
+            private int currentIndex;
+
+            public RandomIndexGenerator(int indexNum, int bufferSize)
+            {
+                hqRNG = new RNGCryptoServiceProvider();
+                this.maxIndex = indexNum;
+                indices = new uint[bufferSize];
+                this.currentIndex = 0;
+                Repopulate();
+            }
+
+            public int GetIndex()
+            {
+                if (this.currentIndex == indices.Length)
+                {
+                    Repopulate();
+                    this.currentIndex = 0;
+                }
+
+                var ret = indices[currentIndex] % maxIndex;
+                currentIndex++;
+                return (int)ret;
+            }
+
+            private void Repopulate()
+            {
+                const int intSize = sizeof(int) / sizeof(byte);
+                var buff = new byte[indices.Length * intSize];
+                hqRNG.GetBytes(buff);
+                Buffer.BlockCopy(buff, 0, indices, 0, buff.Length);
+            }
+        }
+
         public const String PropertyLastDelta = "LAST_DELTA";
 
         private readonly FlatNetwork _flat;
@@ -36,7 +80,9 @@
 
         private readonly IMLDataSet _training;
 
-        private readonly Random rng;
+        private Random rng;
+
+        private RandomIndexGenerator ring;
 
         private double[] _flatSpot;
 
@@ -54,9 +100,9 @@
 
         private double _totalError;
 
-        private GradWorker[] _workers;
+        private GradWorker worker;
 
-        internal double[] Gradients;
+        private readonly double[] Gradients;
 
         public StochasticBackProp(IContainsFlat network, IMLDataSet training, double learnRate, double momentum)
             : base(TrainingImplementationType.Iterative)
@@ -74,12 +120,14 @@
             FixFlatSpot = true;
             ErrorFunction = new LinearErrorFunction();
             rng = new Random();
+            ring = new RandomIndexGenerator(training.Count, 4096);
 
             ValidateNetwork.ValidateMethodToData(network, training);
             _momentum = momentum;
             _learningRate = learnRate;
             _lastDelta = new double[Network.Flat.Weights.Length];
 
+            //this.circularErrorBuffer = new CircularErrorBuffer(training.Count);
             errorBuffer = new ErrorBuffer(training.Count);
         }
 
@@ -141,7 +189,7 @@
             }
         }
 
-        public override sealed bool CanContinue
+        public override bool CanContinue
         {
             get
             {
@@ -149,14 +197,14 @@
             }
         }
 
-        public override sealed TrainingContinuation Pause()
+        public override TrainingContinuation Pause()
         {
             var result = new TrainingContinuation { TrainingType = GetType().Name };
             result.Set(PropertyLastDelta, _lastDelta);
             return result;
         }
 
-        public override sealed void Resume(TrainingContinuation state)
+        public override void Resume(TrainingContinuation state)
         {
             if (!IsValidResume(state))
             {
@@ -171,31 +219,33 @@
             _iteration++;
         }
 
-        
+        //private readonly CircularErrorBuffer circularErrorBuffer;
 
-private ErrorBuffer errorBuffer;
+        private ErrorBuffer errorBuffer;
 
         private int GetRandomIndex()
         {
+            return errorBuffer.IndexRoulette(rng.NextDouble());
+            return ring.GetIndex();
             return rng.Next(Training.Count);
         }
 
         private void ProcessOne()
         {
-            if (_workers == null)
+            if (this.worker == null)
             {
                 Init();
             }
 
-            _workers[0].CalculateError.Reset();
+            this.worker.CalculateError.Reset();
 
             var randomNumber = GetRandomIndex();
-            _workers[0].Run(randomNumber);
+            this.worker.Run(randomNumber);
 
             Learn();
 
-            double errorCur = _workers[0].CalculateError.Calculate();
-            this.Error = errorBuffer.AddError(errorCur);
+            double errorCur = this.worker.CalculateError.Calculate();
+            this.Error = this.errorBuffer.AddError(errorCur, randomNumber);
         }
 
         public bool IsValidResume(TrainingContinuation state)
@@ -243,10 +293,13 @@ private ErrorBuffer errorBuffer;
 
                 this.ProcessOne();
 
+                //EngineArray.ArrayCopy(_flat.Weights, 0, this.worker.Weights, 0, _flat.Weights.Length);
+                /*
                 foreach (GradWorker worker in _workers)
                 {
                     EngineArray.ArrayCopy(_flat.Weights, 0, worker.Weights, 0, _flat.Weights.Length);
                 }
+                 */
 
                 if (_reportedException != null)
                 {
@@ -318,21 +371,21 @@ private ErrorBuffer errorBuffer;
 
         public void CalculateGradients()
         {
-            if (_workers == null)
+            if (this.worker == null)
             {
                 Init();
             }
 
             if (_flat.HasContext)
             {
-                _workers[0].Network.ClearContext();
+                this.worker.Network.ClearContext();
             }
 
             _totalError = 0;
 
-            Parallel.ForEach(_workers, worker => worker.Run());
+            worker.Run();
 
-            Error = _totalError / _workers.Length;
+            Error = _totalError;
         }
 
         private void Init()
@@ -360,29 +413,19 @@ private ErrorBuffer errorBuffer;
                 EngineArray.Fill(_flatSpot, 0);
             }
 
-            var determine = new DetermineWorkload(_numThreads, this._indexable.Count);
-
-            _workers = new GradWorker[determine.ThreadCount];
-
-            int index = 0;
-
-            // handle CPU
-            foreach (IntRange r in determine.CalculateWorkers())
-            {
-                _workers[index++] = new GradWorker(
-                    ((FlatNetwork)_network.Flat.Clone()),
-                    this,
-                    _indexable.OpenAdditional(),
-                    r.Low,
-                    r.High,
-                    _flatSpot,
-                    ErrorFunction);
-            }
+            this.worker = new GradWorker(
+                _network.Flat,
+                this,
+                _indexable.OpenAdditional(),
+                0,
+                Training.Count,
+                _flatSpot,
+                ErrorFunction);
 
             InitOthers();
         }
 
-        internal void Learn()
+        private void Learn()
         {
             double[] weights = _flat.Weights;
             for (int i = 0; i < Gradients.Length; i++)

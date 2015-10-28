@@ -111,7 +111,7 @@
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
             var backpropagation = new StochasticBackProp(this.neuralNetwork, dataSet, this.parser.LearningRate, this.parser.Momentum);
             backpropagation.BatchSize = 1;
-            backpropagation.ErrorFunction = new SquareErrorFunction();
+            //backpropagation.ErrorFunction = new SquareErrorFunction();
 
             var iterationsNumber = parser.NumberOfIterations;
             int i;
@@ -204,24 +204,16 @@
             return best;
         }
 
-        public static int ActualCategory(IMLData pt, double goodEnough = 0.9)
+        public static int ActualCategory(IMLData pt, double goodEnough = -0.9)
         {
             // Returns index of the value at which pt is almost 1 if there is exactly one such value
             // Otherwise returns -1
             int category = -1;
             for (var i = 0; i < pt.Count; i++)
             {
-                if (pt[i] > goodEnough)
+                if (pt[i] > goodEnough && (category < 0 || pt[category] < pt[i]))
                 {
-                    if (category >= 0)
-                    {
-                        return -1;
-                    }
                     category = i;
-                }
-                else if (pt[i] > -goodEnough)
-                {
-                    return -1;
                 }
             }
 
