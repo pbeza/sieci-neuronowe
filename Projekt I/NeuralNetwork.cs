@@ -116,9 +116,17 @@
 
             var iterationsNumber = parser.NumberOfIterations;
             int i;
+            double bestError = Double.PositiveInfinity;
+            string bestWeights = neuralNetwork.DumpWeights();
             for (i = 0; i < iterationsNumber; i++)
             {
                 backpropagation.Iteration();
+                var err = backpropagation.Error;
+                if (bestError > err)
+                {
+                    bestWeights = neuralNetwork.DumpWeights();
+                    bestError = err;
+                }
                 if (Console.KeyAvailable && Console.ReadKey().Key == ConsoleKey.Escape)
                 {
                     break;
@@ -141,12 +149,14 @@
                     continue;
                 }
 
-                var err = backpropagation.Error;
+                
                 writetext.WriteLine("Backpropagation error: " + err);
                 Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, err);
             }
 
-            Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, backpropagation.Error);
+            var finalError = backpropagation.Error;
+            writetext.WriteLine("Backpropagation error: " + finalError);
+            Console.WriteLine("Iteration progress: {0} / {1}, error = {2}", i, iterationsNumber, finalError);
             Console.WriteLine(
                 "Training set error:   {0}",
                 this.CalcError(this.neuralNetwork, trainingModel.TrainingDataset));
@@ -173,7 +183,10 @@
 
             writetext.WriteLine("Training error: " + CalcError(usedMethod, trainingModel.TrainingDataset));
             writetext.WriteLine("Validation error: " + CalcError(usedMethod, trainingModel.ValidationDataset));
-            writetext.WriteLine("Neuron weight dump: " + this.neuralNetwork.DumpWeights());
+            writetext.WriteLine("Final neuron weight dump:");
+            writetext.WriteLine(this.neuralNetwork.DumpWeights());
+            writetext.WriteLine("Lowest error ({0}) neuron weight dump:", bestError);
+            writetext.WriteLine(bestWeights);
 
             var allPoints = new List<ClassifiedPoint>();
             TestData(learningPath, normHelper, usedMethod, allPoints);
