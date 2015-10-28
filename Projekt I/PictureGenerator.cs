@@ -131,7 +131,9 @@
             for (var j = 0; j < resolutionX; j++)
             {
                 var x = j * stepX + coordOffsetX;
-                var output = testFunction.Compute(new BasicMLData(new[] { x }));
+                var data = new BasicMLData(new[] { x });
+                helper.NormalizeInputVector(new[] { x.ToString(CultureInfo.InvariantCulture) }, data.Data, false);
+                var output = testFunction.Compute(data);
                 var stringChosen = helper.DenormalizeOutputVectorToString(output)[0];
                 var y = double.Parse(stringChosen);
                 var colorRGB = RGBFromInt(1);
@@ -178,13 +180,13 @@
 
         private static void GetTransform(double min, double max, int resolution, out double step, out double coordOffset)
         {
-            const double padding = 1.5;
-            double d = max - min;
+            const double padding = 1.0;
+            double d = Math.Abs(max - min);
             double resolutionMult = padding * d;
             step = resolutionMult / resolution;
             double center = (max + min) / 2;
-            double toMiddle = padding * (max - center);
-            coordOffset = center - toMiddle;
+            double toMiddle = Math.Abs(max - center);
+            coordOffset = padding * (center - toMiddle);
         }
 
         private static readonly Dictionary<int, Tuple<int, int, int>> colorMap =

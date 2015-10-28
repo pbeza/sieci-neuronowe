@@ -1,5 +1,7 @@
 namespace sieci_neuronowe
 {
+    using System.Linq;
+
     public class CircularErrorBuffer
     {
         private double errorAccum;
@@ -92,10 +94,11 @@ namespace sieci_neuronowe
             }
 
             double acc = 0.0;
-            double threshold = errorAccum * getAt;
+            double errorAccumSquare = this.errorValues.Sum(t => t * t);
+            double threshold = errorAccumSquare * getAt;
             for (int i = 0; i < this.errorValues.Length; i++)
             {
-                acc += this.errorValues[i];
+                acc += errorValues[i] * errorValues[i];
                 if (acc >= threshold)
                 {
                     return i;

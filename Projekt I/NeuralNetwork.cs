@@ -110,6 +110,7 @@
             var trainingErrorWriter = new StreamWriter(TrainingErrorDataPath);
             var verificationErrorWriter = new StreamWriter(VerificationErrorDataPath);
             var backpropagation = new StochasticBackProp(this.neuralNetwork, dataSet, this.parser.LearningRate, this.parser.Momentum);
+            //var backpropagation = new Backpropagation(this.neuralNetwork, dataSet, this.parser.LearningRate, this.parser.Momentum);
             backpropagation.BatchSize = 1;
             //backpropagation.ErrorFunction = new SquareErrorFunction();
 

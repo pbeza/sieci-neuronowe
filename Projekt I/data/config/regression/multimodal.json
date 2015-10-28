@@ -1,7 +1,7 @@
 ﻿{
     "classification"    : false,
-    "iterations"        : 1000000,
-    "momentum"          : 0.00001,
+    "iterations"        : 100000000,
+    "momentum"          : 0.000999,
     "learningRate"      : 0.001,
     "learningPath"      : ".\\data\\samples\\regression\\data.multimodal.train.100.csv",
     "testingPath"       : ".\\data\\samples\\regression\\data.multimodal.test.100.csv",
