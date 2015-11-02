@@ -35,8 +35,6 @@
             var bmp = new Bitmap(resolutionX, resolutionY);
             var lck = bmp.LockBits(new Rectangle(0, 0, resolutionX, resolutionY), ImageLockMode.WriteOnly,
                 PixelFormat.Format32bppArgb);
-            const double resolutionMult = 3.0;
-            const double coordOffset = -1.5;
             int categoryCount = helper.OutputColumns.Count;
             bool dim = points.Any();
             var xmin = points.Min(p => p.X);
@@ -89,8 +87,8 @@
                 var y = pt.Y;
                 var colorRGB = RGBFromInt((int)pt.Correct);
 
-                var i = (int)((y - coordOffset) / stepY);
-                var j = (int)((x - coordOffset) / stepX);
+                var i = (int)((y - coordOffsetY) / stepY);
+                var j = (int)((x - coordOffsetX) / stepX);
                 if (i >= 0 && i < lck.Height && j >= 0 && j < lck.Width)
                 {
                     Marshal.WriteInt32(lck.Scan0 + (i * lck.Width + j) * 4, colorRGB);

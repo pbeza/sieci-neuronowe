@@ -1,6 +1,6 @@
 ﻿{
     "classification"    : true,
-    "iterations"        : 1000000,
+    "iterations"        : 10000000,
     "momentum"          : 0.001,
     "learningRate"      : 0.01,
     "learningPath"      : ".\\data\\samples\\classification\\data.circles.train.1000.csv",
