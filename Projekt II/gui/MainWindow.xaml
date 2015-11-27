@@ -1,0 +1,16 @@
+﻿<Window x:Class="gui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sieci neuronowe - projekt II" Height="500" Width="1024" MinHeight="350" MinWidth="525">
+    <StackPanel>
+        <ToolBar>
+            <Menu>
+                <MenuItem Header="Menu">
+                    <MenuItem Header="Otwórz"/>
+                    <MenuItem Header="Zapisz"/>
+                </MenuItem>
+            </Menu>
+            <Button Content="Pomoc"></Button>
+        </ToolBar>
+    </StackPanel>
+</Window>
