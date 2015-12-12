@@ -1,0 +1,21 @@
+[submodule "Tutorials/cudalearn"]
+	path = Tutorials/cudalearn
+	url = https://github.com/redknightlois/cudalearn
+[submodule "Tutorials/cudaNN"]
+	path = Tutorials/cudaNN
+	url = https://github.com/bojanvujatovic/cudaNN.git
+[submodule "Tutorials/CudaNNUtils.jl"]
+	path = Tutorials/CudaNNUtils.jl
+	url = https://github.com/peakbook/CudaNNUtils.jl.git
+[submodule "Tutorials/CUDANN"]
+	path = Tutorials/CUDANN
+	url = https://github.com/WilliamHBolden/CUDANN.git
+[submodule "Tutorials/cudnn_BasicUsage"]
+	path = Tutorials/cudnn_BasicUsage
+	url = https://github.com/ljlabs/cudnn_BasicUsage.git
+[submodule "Tutorials/XNet"]
+	path = Tutorials/XNet
+	url = https://github.com/lyx-x/XNet.git
+[submodule "Tutorials/GPU-Accelerated-Deep-CNN-for-Object-Recognition"]
+	path = Tutorials/GPU-Accelerated-Deep-CNN-for-Object-Recognition
+	url = https://github.com/Pontusun/GPU-Accelerated-Deep-CNN-for-Object-Recognition.git
