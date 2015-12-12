@@ -20,18 +20,21 @@
             </StatusBarItem>
         </StatusBar>
         <Border Name="GeoBorder" ClipToBounds="True">
-            <Image Name="GeoImage" Stretch="Fill" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5"
-                   MouseWheel="UIElement_OnMouseWheel"
-                   MouseLeftButtonDown="GeoImage_OnMouseLeftButtonDown"
-                   MouseMove="GeoImage_OnMouseMove"
-                   MouseLeftButtonUp="GeoImage_OnMouseLeftButtonUp">
-                <Image.RenderTransform>
-                    <TransformGroup>
-                        <ScaleTransform/>
-                        <TranslateTransform/>
-                    </TransformGroup>
-                </Image.RenderTransform>
-            </Image>
+            <StackPanel>
+                <Image Name="GeoImage" Stretch="Fill" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5"
+                       MouseWheel="UIElement_OnMouseWheel"
+                       MouseLeftButtonDown="GeoImage_OnMouseLeftButtonDown"
+                       MouseMove="GeoImage_OnMouseMove"
+                       MouseLeftButtonUp="GeoImage_OnMouseLeftButtonUp">
+                    <Image.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform/>
+                            <TranslateTransform/>
+                        </TransformGroup>
+                    </Image.RenderTransform>
+                </Image>
+                <Image Name="GeoTypeMap" Stretch="Fill" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </StackPanel>
         </Border>
     </DockPanel>
 </Window>

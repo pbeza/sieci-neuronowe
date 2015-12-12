@@ -100,6 +100,7 @@ namespace gui
             var corner2 = new GeoCoordinate(48, 10);
 
             var temp = geoData.GetTypesInArea(new GeoCoordinateBox(corner1, corner2), 1024, 1024);
+            GeoTypeMap.Source = BitmapHelper.FromTypeArray(temp);
 
             StatusBarText.Text = "Algorithm ended successfully.";
         }
