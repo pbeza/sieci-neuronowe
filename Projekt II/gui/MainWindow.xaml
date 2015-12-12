@@ -1,7 +1,7 @@
 ﻿<Window x:Class="gui.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Neural networks - project II" Height="500" Width="1024" MinHeight="350" MinWidth="525" WindowStartupLocation="CenterScreen">
+        Title="Neural networks - project II" Height="500" Width="1024" MinHeight="350" MinWidth="525" WindowStartupLocation="CenterScreen" Loaded="Window_Loaded_1">
     <DockPanel LastChildFill="True">
         <ToolBarTray DockPanel.Dock="Top">
             <ToolBar>

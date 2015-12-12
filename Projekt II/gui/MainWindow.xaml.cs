@@ -10,6 +10,10 @@ using Microsoft.Win32;
 
 namespace gui
 {
+    using gui.geo;
+
+    using OsmSharp.Math.Geo;
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -21,6 +25,8 @@ namespace gui
         private BitmapImage _geoImg;
         private Point _start;
         private Point _origin;
+
+        private GeoData geoData;
 
         [DllImport("engine.dll", CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.BStr)]
@@ -88,7 +94,19 @@ namespace gui
             StatusBarText.Text = "Wait. Starting algorithm...";
             // TODO
             Console.WriteLine(test());
+
+            geoData = new GeoData("liechtenstein-latest.osm");
+            var corner1 = new GeoCoordinate(47, 9);
+            var corner2 = new GeoCoordinate(48, 10);
+
+            var temp = geoData.GetTypesInArea(new GeoCoordinateBox(corner1, corner2), 1024, 1024);
+
             StatusBarText.Text = "Algorithm ended successfully.";
+        }
+
+        private void Window_Loaded_1(object sender, RoutedEventArgs e)
+        {
+            
         }
     }
 }
