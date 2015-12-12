@@ -146,8 +146,12 @@
                 var poly = WayToPolygon(building.way);
                 int startX = (int)((buildingBounds.MinLat - bounds.MinLat) / stepX);
                 int startY = (int)((buildingBounds.MinLon - bounds.MinLon) / stepY);
+                startX = Math.Max(0, startX);
+                startY = Math.Max(0, startY);
                 int endX = (int)((buildingBounds.MaxLat - bounds.MinLat) / stepX) + 1;
                 int endY = (int)((buildingBounds.MaxLon - bounds.MinLon) / stepY) + 1;
+                endX = Math.Min(resolutionX, endX);
+                endY = Math.Min(resolutionY, endY);
                 for (int x = startX; x < endX; x++)
                 {
                     for (int y = startY; y < endY; y++)

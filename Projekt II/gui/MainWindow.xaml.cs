@@ -96,8 +96,8 @@ namespace gui
             Console.WriteLine(test());
 
             geoData = new GeoData("liechtenstein-latest.osm");
-            var corner1 = new GeoCoordinate(47, 9);
-            var corner2 = new GeoCoordinate(48, 10);
+            var corner1 = new GeoCoordinate(47.0, 9.5);
+            var corner2 = new GeoCoordinate(47.3, 9.7);
 
             var temp = geoData.GetTypesInArea(new GeoCoordinateBox(corner1, corner2), 1024, 1024);
             GeoTypeMap.Source = BitmapHelper.FromTypeArray(temp);
