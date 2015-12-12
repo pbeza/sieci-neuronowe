@@ -23,7 +23,7 @@
             var BCx = Cx - Bx;
             var BCy = Cy - By;
 
-            return (BAx * BCy - BAy * BCx);
+            return BAx * BCy - BAy * BCx;
         }
 
         private static double DotProduct(double Ax, double Ay, double Bx, double By, double Cx, double Cy)
@@ -33,7 +33,7 @@
             var BCx = Cx - Bx;
             var BCy = Cy - By;
 
-            return (BAx * BCx + BAy * BCy);
+            return BAx * BCx + BAy * BCy;
         }
 
         private static double GetAngle(double Ax, double Ay, double Bx, double By, double Cx, double Cy)
@@ -53,7 +53,7 @@
                 total_angle += GetAngle(Points[i].X, Points[i].Y, X, Y, Points[i + 1].X, Points[i + 1].Y);
             }
 
-            return (Math.Abs(total_angle) > 0.000001);
+            return Math.Abs(total_angle) > 0.000001;
         }
     }
 }

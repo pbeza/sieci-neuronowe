@@ -99,6 +99,9 @@ namespace gui
             var temp = _geoData.GetTypesInArea(new GeoCoordinateBox(corner1, corner2), resolutionX, resolutionY);
             GeoTypeMap.Source = BitmapHelper.FromTypeArray(temp);
 
+            // Call to C++ code
+            test();
+
             StatusBarText.Text = "Algorithm ended successfully.";
         }
     }
