@@ -1,49 +1,38 @@
-﻿using System;
+﻿using Microsoft.Win32;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using Microsoft.Win32;
 
 namespace gui
 {
-    using gui.geo;
+    using geo;
 
     using OsmSharp.Math.Geo;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow
     {
-        private const string DefaultExtension = ".png";
-        private const string OpenFileDialogFilter = "Image files (*.jpg, *.jpeg, *.jpe, *.jfif, *.png) | *.jpg; *.jpeg; *.jpe; *.jfif; *.png";
+        private const string DllFile = "engine.dll";
+        private const string DefaultExtension = ".osm";
+        private const string OpenFileDialogFilter = "Open Street Maps file (*.osm) | *osm";
+        private const string DefaultOsmFilePath = "liechtenstein-latest.osm";
         private const float ZoomFactor = 0.01f;
-        private BitmapImage _geoImg;
+        private string _selectedOpenStreetMapFile = DefaultOsmFilePath;
         private Point _start;
         private Point _origin;
+        private GeoData _geoData;
 
-        private GeoData geoData;
-
-        [DllImport("engine.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(DllFile, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.BStr)]
         public static extern string test();
 
         public MainWindow()
         {
             InitializeComponent();
-        }
-
-        private void InitImage(string path)
-        {
-            _geoImg = new BitmapImage();
-            _geoImg.BeginInit();
-            _geoImg.UriSource = new Uri(path);
-            _geoImg.EndInit();
-            GeoImage.Source = _geoImg;
         }
 
         private void OpenMenuItem_Click(object sender, RoutedEventArgs e)
@@ -55,8 +44,8 @@ namespace gui
             };
             var result = dlg.ShowDialog();
             if (result != true) return;
-            InitImage(dlg.FileName);
-            StatusBarText.Text = string.Format("File '{0}' loaded successfully.", dlg.FileName);
+            _selectedOpenStreetMapFile = dlg.FileName;
+            StartAlgorithm();
         }
 
         private void UIElement_OnMouseWheel(object sender, MouseWheelEventArgs e)
@@ -91,23 +80,26 @@ namespace gui
 
         private void StartAlgorithm_Click(object sender, RoutedEventArgs e)
         {
-            StatusBarText.Text = "Wait. Starting algorithm...";
-            // TODO
-            Console.WriteLine(test());
+            StartAlgorithm();
+        }
 
-            geoData = new GeoData("liechtenstein-latest.osm");
-            var corner1 = new GeoCoordinate(47.0, 9.5);
-            var corner2 = new GeoCoordinate(47.3, 9.7);
+        private void StartAlgorithm()
+        {
+            StatusBarText.Text = string.Format("File '{0}' loaded successfully. Starting algorithm...", _selectedOpenStreetMapFile);
 
-            var temp = geoData.GetTypesInArea(new GeoCoordinateBox(corner1, corner2), 1024, 1024);
+            _geoData = new GeoData(_selectedOpenStreetMapFile);
+
+            double[] lowerLeftPoint = { 47.0, 9.5 };
+            double[] upperRightPoint = { 47.3, 9.7 };
+            var corner1 = new GeoCoordinate(lowerLeftPoint[0], lowerLeftPoint[1]);
+            var corner2 = new GeoCoordinate(upperRightPoint[0], upperRightPoint[1]);
+
+            const int resolutionX = 1024;
+            const int resolutionY = 1024;
+            var temp = _geoData.GetTypesInArea(new GeoCoordinateBox(corner1, corner2), resolutionX, resolutionY);
             GeoTypeMap.Source = BitmapHelper.FromTypeArray(temp);
 
             StatusBarText.Text = "Algorithm ended successfully.";
-        }
-
-        private void Window_Loaded_1(object sender, RoutedEventArgs e)
-        {
-            
         }
     }
 }

@@ -4,12 +4,9 @@
 
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.IO;
-    using System.Linq;
     using System.Windows;
 
-    using OsmSharp.Logging;
     using OsmSharp.Math.Geo;
     using OsmSharp.Osm;
     using OsmSharp.Osm.Xml.Streams;
@@ -20,13 +17,13 @@
     {
         private readonly string path;
 
-        private Dictionary<long, Node> nodes;
+        private readonly Dictionary<long, Node> nodes;
 
-        private Dictionary<long, Relation> relations;
+        private readonly Dictionary<long, Relation> relations;
 
-        private Dictionary<long, Way> ways;
+        private readonly Dictionary<long, Way> ways;
 
-        private Dictionary<long, Building> buildings;
+        private readonly Dictionary<long, Building> buildings;
 
         private BoundsCheck<Building> boundsCheck;
 
@@ -57,8 +54,7 @@
                 {
                     continue;
                 }
-
-                long id = geo.Id.Value;
+                var id = geo.Id.Value;
                 switch (geo.Type)
                 {
                     case OsmGeoType.Node:
@@ -85,7 +81,7 @@
 
         private List<GeoCoordinate> GetNodeCoords(Way way)
         {
-            List<GeoCoordinate> ret = new List<GeoCoordinate>(way.Nodes.Count);
+            var ret = new List<GeoCoordinate>(way.Nodes.Count);
             foreach (var nodeId in way.Nodes)
             {
                 Node node;
@@ -109,55 +105,39 @@
                 {
                     continue;
                 }
-
                 if (!way.Id.HasValue)
                 {
                     continue;
                 }
-
                 var id = way.Id.Value;
-
-                GeoCoordinateBox box = GetBoundingBox(way);
+                var box = GetBoundingBox(way);
                 buildings.Add(id, new Building(keyValuePair.Value, box));
             }
 
-            boundsCheck = new BoundsCheck<Building>(new List<Building>(this.buildings.Values));
-        }
-
-        private Polygon WayToPolygon(Way w)
-        {
-            List<PointD> poly = new List<PointD>(w.Nodes.Count);
-            poly.AddRange(
-                w.Nodes.Select(nodeId => this.nodes[nodeId])
-                    .Select(node => new PointD((double)node.Latitude, (double)node.Longitude)));
-
-            return new Polygon(poly);
+            boundsCheck = new BoundsCheck<Building>(new List<Building>(buildings.Values));
         }
 
         public TerrainType[,] GetTypesInArea(GeoCoordinateBox bounds, int resolutionX, int resolutionY)
         {
-            TerrainType[,] ret = new TerrainType[resolutionX, resolutionY];
-            double stepX = bounds.DeltaLat / resolutionX;
-            double stepY = bounds.DeltaLon / resolutionY;
+            var ret = new TerrainType[resolutionX, resolutionY];
+            var stepX = bounds.DeltaLat / resolutionX;
+            var stepY = bounds.DeltaLon / resolutionY;
             var inBounds = boundsCheck.GetValuesInBounds(bounds);
             foreach (var building in inBounds)
             {
                 var buildingBounds = building.GetBounds();
-                var poly = WayToPolygon(building.way);
-                int startX = (int)((buildingBounds.MinLat - bounds.MinLat) / stepX);
-                int startY = (int)((buildingBounds.MinLon - bounds.MinLon) / stepY);
+                var startX = (int)((buildingBounds.MinLat - bounds.MinLat) / stepX);
+                var startY = (int)((buildingBounds.MinLon - bounds.MinLon) / stepY);
                 startX = Math.Max(0, startX);
                 startY = Math.Max(0, startY);
-                int endX = (int)((buildingBounds.MaxLat - bounds.MinLat) / stepX) + 1;
-                int endY = (int)((buildingBounds.MaxLon - bounds.MinLon) / stepY) + 1;
+                var endX = (int)((buildingBounds.MaxLat - bounds.MinLat) / stepX) + 1;
+                var endY = (int)((buildingBounds.MaxLon - bounds.MinLon) / stepY) + 1;
                 endX = Math.Min(resolutionX, endX);
                 endY = Math.Min(resolutionY, endY);
                 for (int x = startX; x < endX; x++)
                 {
                     for (int y = startY; y < endY; y++)
                     {
-                        double xLocal = startX * stepX + bounds.MinLat;
-                        double yLocal = startY * stepY + bounds.MinLon;
                         //if (poly.PointInPolygon(xLocal, yLocal))
                         {
                             ret[x, y] = TerrainType.Building;

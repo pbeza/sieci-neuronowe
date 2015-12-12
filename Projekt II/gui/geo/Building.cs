@@ -9,7 +9,7 @@
 
     public class Building : IBoundingBox
     {
-        private GeoCoordinateBox boundingBox;
+        private readonly GeoCoordinateBox boundingBox;
 
         public Way way { get; private set; }
 

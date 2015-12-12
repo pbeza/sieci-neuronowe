@@ -1,4 +1,6 @@
-﻿namespace gui.geo
+﻿using System.Linq;
+
+namespace gui.geo
 {
     #region
 
@@ -12,14 +14,13 @@
     public class BoundsCheck<T>
         where T : IBoundingBox
     {
-        private List<Tuple<double, T>> minLatSorted;
+        private readonly List<Tuple<double, T>> minLatSorted;
 
-        public BoundsCheck(List<T> unsorted)
+        public BoundsCheck(IReadOnlyCollection<T> unsorted)
         {
             minLatSorted = new List<Tuple<double, T>>(unsorted.Count);
-            foreach (var elem in unsorted)
+            foreach (var tp in unsorted.Select(elem => Tuple.Create(elem.GetBounds().MinLat, elem)))
             {
-                var tp = Tuple.Create(elem.GetBounds().MinLat, elem);
                 minLatSorted.Add(tp);
             }
         }
