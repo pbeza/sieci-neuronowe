@@ -5,6 +5,7 @@
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Windows;
 
     using OsmSharp.Math.Geo;
@@ -15,15 +16,15 @@
 
     public class GeoData
     {
-        private readonly string path;
+        private readonly Dictionary<long, Building> buildings;
 
         private readonly Dictionary<long, Node> nodes;
+
+        private readonly string path;
 
         private readonly Dictionary<long, Relation> relations;
 
         private readonly Dictionary<long, Way> ways;
-
-        private readonly Dictionary<long, Building> buildings;
 
         private BoundsCheck<Building> boundsCheck;
 
@@ -96,6 +97,16 @@
             return ret;
         }
 
+        private Polygon WayToPolygon(Way w)
+        {
+            List<PointD> poly = new List<PointD>(w.Nodes.Count);
+            poly.AddRange(
+                w.Nodes.Select(nodeId => this.nodes[nodeId])
+                    .Select(node => new PointD((double)node.Latitude, (double)node.Longitude)));
+
+            return new Polygon(poly);
+        }
+
         private void CacheBuildings()
         {
             foreach (var keyValuePair in ways)
@@ -126,6 +137,7 @@
             foreach (var building in inBounds)
             {
                 var buildingBounds = building.GetBounds();
+                var poly = WayToPolygon(building.way);
                 var startX = (int)((buildingBounds.MinLat - bounds.MinLat) / stepX);
                 var startY = (int)((buildingBounds.MinLon - bounds.MinLon) / stepY);
                 startX = Math.Max(0, startX);
@@ -136,9 +148,15 @@
                 endY = Math.Min(resolutionY, endY);
                 for (int x = startX; x < endX; x++)
                 {
+                    double xLocal = startX * stepX + bounds.MinLat;
                     for (int y = startY; y < endY; y++)
                     {
-                        //if (poly.PointInPolygon(xLocal, yLocal))
+                        double yLocal = startY * stepY + bounds.MinLon;
+                        if (poly.PointInPolygon(xLocal, yLocal))
+                        {
+                            ret[x, y] = TerrainType.Building;
+                        }
+                        else
                         {
                             ret[x, y] = TerrainType.Building;
                         }
