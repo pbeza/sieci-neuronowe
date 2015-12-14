@@ -24,7 +24,7 @@ namespace gui
         private string _selectedOpenStreetMapFile = DefaultOsmFilePath;
         private Point _start;
         private Point _origin;
-        private GeoData _geoData;
+        private GeoData geoData;
 
         [DllImport(DllFile, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.BStr)]
@@ -86,17 +86,25 @@ namespace gui
         private void StartAlgorithm()
         {
             StatusBarText.Text = string.Format("File '{0}' loaded successfully. Starting algorithm...", _selectedOpenStreetMapFile);
+            UpdateLayout();
 
-            _geoData = new GeoData(_selectedOpenStreetMapFile);
-
-            double[] lowerLeftPoint = { 47.0, 9.5 };
-            double[] upperRightPoint = { 47.3, 9.7 };
-            var corner1 = new GeoCoordinate(lowerLeftPoint[0], lowerLeftPoint[1]);
-            var corner2 = new GeoCoordinate(upperRightPoint[0], upperRightPoint[1]);
+            if (geoData == null)
+            {
+                geoData = new GeoData(_selectedOpenStreetMapFile);
+            }
+            var context = DataContext as TheContext;
+            if (context == null)
+            {
+                MessageBox.Show("Null context");
+                return;
+            }
+            
+            var corner1 = new GeoCoordinate(context.X1, context.Y1);
+            var corner2 = new GeoCoordinate(context.X2, context.Y2);
 
             const int resolutionX = 1024;
             const int resolutionY = 1024;
-            var temp = _geoData.GetTypesInArea(new GeoCoordinateBox(corner1, corner2), resolutionX, resolutionY);
+            var temp = geoData.GetTypesInArea(new GeoCoordinateBox(corner1, corner2), resolutionX, resolutionY);
             GeoTypeMap.Source = BitmapHelper.FromTypeArray(temp);
 
             // Call to C++ code

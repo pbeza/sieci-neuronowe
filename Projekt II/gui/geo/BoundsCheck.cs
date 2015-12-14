@@ -23,6 +23,8 @@ namespace gui.geo
             {
                 minLatSorted.Add(tp);
             }
+
+            minLatSorted.Sort((a, b) => Math.Sign(a.Item1 - b.Item1));
         }
 
         private int LowerBound(double bound)
@@ -58,7 +60,7 @@ namespace gui.geo
                 int it = first;
                 int step = count / 2;
                 it += step;
-                if (minLatSorted[it].Item1 > bound)
+                if (minLatSorted[it].Item1 < bound)
                 {
                     first = ++it;
                     count -= step + 1;
@@ -68,13 +70,13 @@ namespace gui.geo
                     count = step;
                 }
             }
-            return first;
+            return first + 1;
         }
 
         public IEnumerable<T> GetValuesInBounds(GeoCoordinateBox box)
         {
             int first = LowerBound(box.MinLat);
-            int last = UpperBound(box.MinLat);
+            int last = UpperBound(box.MaxLat);
             last = Math.Min(minLatSorted.Count - 1, last);
             for (int i = first; i <= last; i++)
             {

@@ -14,7 +14,7 @@
             Points = points;
         }
 
-        private List<PointD> Points { get; set; }
+        public List<PointD> Points { get; private set; }
 
         private static double CrossProductLength(double Ax, double Ay, double Bx, double By, double Cx, double Cy)
         {
@@ -45,15 +45,30 @@
 
         public bool PointInPolygon(double X, double Y)
         {
-            var max_point = Points.Count - 1;
-            var total_angle = GetAngle(Points[max_point].X, Points[max_point].Y, X, Y, Points[0].X, Points[0].Y);
+            var lastPoint = Points.Count - 1;
+            var totalAngle = GetAngle(Points[lastPoint].X, Points[lastPoint].Y, X, Y, Points[0].X, Points[0].Y);
 
-            for (var i = 0; i < max_point; i++)
+            for (var i = 0; i < lastPoint; i++)
             {
-                total_angle += GetAngle(Points[i].X, Points[i].Y, X, Y, Points[i + 1].X, Points[i + 1].Y);
+                totalAngle += GetAngle(Points[i].X, Points[i].Y, X, Y, Points[i + 1].X, Points[i + 1].Y);
             }
 
-            return Math.Abs(total_angle) > 0.000001;
+            return Math.Abs(totalAngle) > 0.000001;
+        }
+
+        private double PolygonArea()
+        {
+            var lastPoint = Points.Count - 1;
+
+            // Get the areas.
+            double area = (Points[lastPoint].X - Points[0].X) * (Points[lastPoint].Y + Points[0].Y) / 2;
+            for (int i = 0; i < Points.Count; i++)
+            {
+                area += (Points[i + 1].X - Points[i].X) * (Points[i + 1].Y + Points[i].Y) / 2;
+            }
+
+            // Return the result.
+            return Math.Abs(area);
         }
     }
 }
