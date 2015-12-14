@@ -4,7 +4,7 @@
     {
         Nothing = 0,
 
-        Road,
+        Route,
 
         Building
     }

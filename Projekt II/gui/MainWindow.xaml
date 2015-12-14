@@ -17,13 +17,13 @@
                 </Menu>
                 <Button Content="Start!" Click="StartAlgorithm_Click"></Button>
                 <Label>X1</Label>
-                <TextBox Name="TextBoxX1" Text="{Binding Path=X1, Mode=TwoWay}" />
+                <TextBox Text="{Binding Path=X1, Mode=TwoWay}" />
                 <Label>Y1</Label>
-                <TextBox Name="TextBoxY1" Text="{Binding Path=Y1, Mode=TwoWay}" />
+                <TextBox Text="{Binding Path=Y1, Mode=TwoWay}" />
                 <Label>X2</Label>
-                <TextBox Name="TextBoxX2" Text="{Binding Path=X2, Mode=TwoWay}" />
+                <TextBox Text="{Binding Path=X2, Mode=TwoWay}" />
                 <Label>Y2</Label>
-                <TextBox Name="TextBoxY2" Text="{Binding Path=Y2, Mode=TwoWay}" />
+                <TextBox Text="{Binding Path=Y2, Mode=TwoWay}" />
             </ToolBar>
         </ToolBarTray>
         <StatusBar DockPanel.Dock="Bottom">
@@ -32,8 +32,8 @@
             </StatusBarItem>
         </StatusBar>
         <Border Name="GeoBorder" ClipToBounds="True">
-            <StackPanel>
-                <Image Name="GeoImage" Stretch="Fill" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5"
+            <StackPanel Orientation="Horizontal">
+                <Image Name="GeoImage" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5"
                        MouseWheel="UIElement_OnMouseWheel"
                        MouseLeftButtonDown="GeoImage_OnMouseLeftButtonDown"
                        MouseMove="GeoImage_OnMouseMove"
@@ -45,7 +45,7 @@
                         </TransformGroup>
                     </Image.RenderTransform>
                 </Image>
-                <Image Name="GeoTypeMap" Stretch="Fill" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <Image Name="GeoTypeMap" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
     </DockPanel>

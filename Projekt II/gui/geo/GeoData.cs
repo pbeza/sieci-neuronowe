@@ -26,9 +26,13 @@
 
         private readonly Dictionary<long, Relation> relations;
 
+        private readonly Dictionary<long, Route> routes;
+
         private readonly Dictionary<long, Way> ways;
 
-        private BoundsCheck<Building> boundsCheck;
+        private BoundsCheck<Building> buildingBounds;
+
+        private BoundsCheck<Route> routeBounds;
 
         public GeoData(string loadPath)
         {
@@ -36,6 +40,7 @@
             relations = new Dictionary<long, Relation>();
             ways = new Dictionary<long, Way>();
             buildings = new Dictionary<long, Building>();
+            routes = new Dictionary<long, Route>();
             path = loadPath;
             try
             {
@@ -74,7 +79,7 @@
                 }
             }
 
-            CacheBuildings();
+            this.CacheFeatures();
         }
 
         private GeoCoordinateBox GetBoundingBox(Way w)
@@ -120,7 +125,18 @@
             buildings.Add(id, new Building(way, box));
         }
 
-        private void CacheBuildings()
+        private void CacheRoute(Way way)
+        {
+            if (!way.Id.HasValue || this.routes.ContainsKey(way.Id.Value))
+            {
+                return;
+            }
+            var id = way.Id.Value;
+            var box = GetBoundingBox(way);
+            this.routes.Add(id, new Route(way, box));
+        }
+
+        private void CacheFeatures()
         {
             foreach (var keyValuePair in ways)
             {
@@ -129,13 +145,20 @@
                 {
                     continue;
                 }
-                CacheBuilding(way);
+                if (way.Tags.ContainsKey("building"))
+                {
+                    CacheBuilding(way);
+                }
+                else if (way.Tags.ContainsKey("route"))
+                {
+                    this.CacheRoute(way);
+                }
             }
 
             foreach (var keyValuePair in relations)
             {
                 var relation = keyValuePair.Value;
-                if (relation.Tags == null || !relation.Tags.ContainsKey("building"))
+                if (relation.Tags == null)
                 {
                     continue;
                 }
@@ -143,6 +166,15 @@
                 if (!relation.Id.HasValue)
                 {
                     continue;
+                }
+
+                bool isBuilding = relation.Tags.ContainsKey("building");
+                if (!isBuilding)
+                {
+                    if (!relation.Tags.ContainsKey("route"))
+                    {
+                        continue;
+                    }
                 }
 
                 foreach (var value in relations.Values)
@@ -154,15 +186,25 @@
                             continue;
                         }
                         Way way;
-                        if (this.ways.TryGetValue(relationMember.MemberId.Value, out way))
+                        if (!this.ways.TryGetValue(relationMember.MemberId.Value, out way))
+                        {
+                            continue;
+                        }
+
+                        if (isBuilding)
                         {
                             this.CacheBuilding(way);
+                        }
+                        else
+                        {
+                            this.CacheRoute(way);
                         }
                     }
                 }
             }
 
-            boundsCheck = new BoundsCheck<Building>(new List<Building>(buildings.Values));
+            buildingBounds = new BoundsCheck<Building>(new List<Building>(buildings.Values));
+            routeBounds = new BoundsCheck<Route>(new List<Route>(routes.Values));
         }
 
         public TerrainType[,] GetTypesInArea(GeoCoordinateBox bounds, int resolutionX, int resolutionY)
@@ -171,116 +213,40 @@
             var resolution = new Point(resolutionX, resolutionY);
             var offset = new PointD(bounds.MinLat, bounds.MinLon);
             var step = new PointD(bounds.DeltaLat / resolutionX, bounds.DeltaLon / resolutionY);
-            var inBounds = boundsCheck.GetValuesInBounds(bounds);
-            var enumerable = inBounds as IList<Building> ?? inBounds.ToList();
-            var boundsSize = enumerable.Count();
-            for (int index = 0; index < enumerable.Count; index++)
+            var inBoundsBuildings = buildingBounds.GetValuesInBounds(bounds);
+            Point start;
+            Point end;
+            foreach (var bld in inBoundsBuildings)
             {
-                var building = enumerable[index];
-                var buildingBounds = building.GetBounds();
-                var poly = this.WayToPolygon(building.way);
-                var startGlobal = new PointD(buildingBounds.MinLat, buildingBounds.MinLon);
-                var start = ToBitmapCoords(startGlobal, offset, step, resolution);
-                var endGlobal = new PointD(buildingBounds.MaxLat, buildingBounds.MaxLon);
-                var end = ToBitmapCoords(endGlobal, offset, step, resolution);
+                var tr = new Transform(resolution, offset, step);
+                tr.TranslateBounds(bld, out start, out end);
                 if (start.X >= end.X - 1 && start.Y >= end.Y - 1)
-                    //if(true)
                 {
                     ret[start.X, start.Y] = TerrainType.Building;
                 }
                 else
                 {
-                    DrawPolygon(bounds, start, end, resolution, offset, step, poly, ret);
+                    var poly = WayToPolygon(bld.way);
+                    poly.Draw(start, end, tr, ret);
+                }
+            }
+
+            var inBoundsRoutes = routeBounds.GetValuesInBounds(bounds);
+            foreach (var route in inBoundsRoutes)
+            {
+                var tr = new Transform(resolution, offset, step);
+                tr.TranslateBounds(route, out start, out end);
+                if (start.X >= end.X - 1 && start.Y >= end.Y - 1)
+                {
+                    ret[start.X, start.Y] = TerrainType.Building;
+                }
+                else
+                {
+                    var poly = WayToPolygon(route.way);
+                    poly.DrawWireframe(start, end, tr, ret);
                 }
             }
             return ret;
-        }
-
-        private static Point ToBitmapCoords(PointD p, PointD offset, PointD step, Point resolution)
-        {
-            var x = (int)((p.X - offset.X) / step.X);
-            var y = (int)((p.Y - offset.Y) / step.Y);
-            x = Math.Max(0, Math.Min(x, resolution.X - 1));
-            y = Math.Max(0, Math.Min(y, resolution.Y - 1));
-            return new Point(x, y);
-        }
-
-        private static PointD ToBitmapCoordsD(PointD p, PointD offset, PointD step, Point resolution)
-        {
-            var x = ((p.X - offset.X) / step.X);
-            var y = ((p.Y - offset.Y) / step.Y);
-            x = Math.Max(0, Math.Min(x, resolution.X - 1));
-            y = Math.Max(0, Math.Min(y, resolution.Y - 1));
-            return new PointD(x, y);
-        }
-
-        private static void DrawPolygon(
-            GeoCoordinateBox bounds,
-            Point start,
-            Point end,
-            Point resolution,
-            PointD offset,
-            PointD step,
-            Polygon poly,
-            TerrainType[,] ret)
-        {
-            foreach (var p in poly.Points)
-            {
-                var b = ToBitmapCoords(p, offset, step, resolution);
-                ret[b.X, b.Y] = TerrainType.Building;
-            }
-            /*
-            for (int x = start.X; x < end.X; x++)
-            {
-                double xLocal = x * step.X + bounds.MinLat;
-                for (int y = start.Y; y < end.Y; y++)
-                {
-                    double yLocal = y * step.Y + bounds.MinLon;
-                    if (poly.PointInPolygon(xLocal, yLocal))
-                    {
-                        ret[x, y] = TerrainType.Building;
-                    }
-                }
-            }
-             */
-            int polyCorners = poly.Points.Count;
-            var pts = poly.Points.Select(x => ToBitmapCoordsD(x, offset, step, resolution)).ToArray();
-            for (int pixelY = start.Y; pixelY < end.Y; pixelY++)
-            {
-                //  Build a list of nodes.
-                List<int> nodeX = new List<int>(pts.Length);
-                int j = polyCorners - 1;
-                for (int i = 0; i < polyCorners; i++)
-                {
-                    if (pts[i].Y < pixelY && pts[j].Y >= pixelY
-                        || pts[j].Y < pixelY && pts[i].Y >= pixelY)
-                    {
-                        nodeX.Add((int)(pts[i].X + (pixelY - pts[i].Y) / (pts[j].Y - pts[i].Y) * (pts[j].X - pts[i].X)));
-                    }
-                    j = i;
-                }
-
-                nodeX.Sort((a, b) => (a - b));
-
-                //  Fill the pixels between node pairs.
-                for (int i = 0; i < nodeX.Count - 1; i += 2)
-                {
-                    if (nodeX[i] >= end.X)
-                    {
-                        break;
-                    }
-                    if (nodeX[i + 1] <= start.X)
-                    {
-                        continue;
-                    }
-                    nodeX[i] = Math.Max(nodeX[i], start.X);
-                    nodeX[i + 1] = Math.Min(nodeX[i + 1], end.X);
-                    for (int pixelX = nodeX[i]; pixelX < nodeX[i + 1]; pixelX++)
-                    {
-                        ret[pixelX, pixelY] = TerrainType.Building;
-                    }
-                }
-            }
         }
     }
 }

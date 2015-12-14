@@ -12,10 +12,17 @@ namespace gui
             Y2 = 9.7;
              */
             // Wybrany pod-obszar
+            /*
             X1 = 47.11;
             Y1 = 9.534;
             X2 = 47.12;
             Y2 = 9.58;
+             */
+            // Dziwny budynek
+            X1 = 47.111;
+            Y1 = 9.551;
+            X2 = 47.1127;
+            Y2 = 9.555;
         }
 
         public double X1 { get; set; }
