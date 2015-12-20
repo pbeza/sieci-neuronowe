@@ -34,6 +34,10 @@ message(STATUS "Detected system: ${CMAKE_SYSTEM_NAME} ${CMAKE_HOST_SYSTEM_PROCES
 
 find_package(OpenCV REQUIRED)
 
+# Add Caffe framework, which is in third-party repository
+
+add_subdirectory(caffe)
+
 # Include headers.
 
 include_directories(${OpenCV_INCLUDE_DIRS})
